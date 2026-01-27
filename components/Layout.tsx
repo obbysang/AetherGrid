@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View } from '../types';
 import { 
     LayoutDashboard, 
@@ -11,7 +11,9 @@ import {
     Search,
     User,
     Truck,
-    Sun
+    Sun,
+    Menu,
+    X
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -21,6 +23,7 @@ interface LayoutProps {
 }
 
 export const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, children }) => {
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     
     const navItems = [
         { id: View.MISSION_CONTROL, label: 'Mission Control', icon: LayoutDashboard },
@@ -31,13 +34,38 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, childre
         { id: View.SOLAR_PLANNER, label: 'Solar Planner', icon: Sun },
     ];
 
+    const handleNavigate = (view: View) => {
+        onNavigate(view);
+        setIsMobileMenuOpen(false);
+    };
+
     return (
         <div className="flex h-screen w-full bg-background-dark text-text-main font-sans overflow-hidden">
+            {/* Mobile Sidebar Overlay */}
+            {isMobileMenuOpen && (
+                <div 
+                    className="fixed inset-0 bg-black/50 z-20 md:hidden backdrop-blur-sm"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                />
+            )}
+
             {/* Sidebar */}
-            <aside className="w-64 bg-background-darker border-r border-primary-dim flex flex-col z-20 flex-shrink-0">
-                <div className="h-16 flex items-center px-6 border-b border-primary-dim">
-                    <Wind className="text-primary w-6 h-6 mr-3 animate-pulse-slow" />
-                    <span className="font-bold text-lg tracking-wider text-white">AETHER<span className="text-primary">GRID</span></span>
+            <aside className={`
+                fixed inset-y-0 left-0 z-30 w-64 bg-background-darker border-r border-primary-dim flex flex-col transition-transform duration-300 ease-in-out flex-shrink-0
+                md:relative md:translate-x-0
+                ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+            `}>
+                <div className="h-16 flex items-center justify-between px-6 border-b border-primary-dim">
+                    <div className="flex items-center">
+                        <Wind className="text-primary w-6 h-6 mr-3 animate-pulse-slow" />
+                        <span className="font-bold text-lg tracking-wider text-white">AETHER<span className="text-primary">GRID</span></span>
+                    </div>
+                    <button 
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="md:hidden text-text-muted hover:text-white"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
                 </div>
 
                 <nav className="flex-1 py-6 px-3 space-y-2 overflow-y-auto custom-scrollbar">
@@ -45,7 +73,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, childre
                     {navItems.map((item) => (
                         <button
                             key={item.id}
-                            onClick={() => onNavigate(item.id)}
+                            onClick={() => handleNavigate(item.id)}
                             className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 group ${
                                 currentView === item.id 
                                 ? 'bg-primary-dim text-white border-l-4 border-primary' 
@@ -59,7 +87,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, childre
 
                     <div className="text-xs font-bold text-text-muted uppercase tracking-widest px-3 mt-8 mb-2 font-mono">System</div>
                     <button 
-                        onClick={() => onNavigate(View.CONFIGURATION)}
+                        onClick={() => handleNavigate(View.CONFIGURATION)}
                         className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 group ${
                             currentView === View.CONFIGURATION
                             ? 'bg-primary-dim text-white border-l-4 border-primary'
@@ -87,18 +115,26 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, childre
             {/* Main Content */}
             <div className="flex-1 flex flex-col min-w-0">
                 {/* Header */}
-                <header className="h-16 border-b border-primary-dim bg-background-dark/80 backdrop-blur-md flex items-center justify-between px-6 z-10 sticky top-0">
+                <header className="h-16 border-b border-primary-dim bg-background-dark/80 backdrop-blur-md flex items-center justify-between px-4 md:px-6 z-10 sticky top-0">
                     <div className="flex items-center gap-4">
+                        <button 
+                            onClick={() => setIsMobileMenuOpen(true)}
+                            className="md:hidden p-1 text-text-muted hover:text-white"
+                        >
+                            <Menu className="w-6 h-6" />
+                        </button>
+                        
                          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-success/10 border border-success/20">
                             <div className="w-2 h-2 rounded-full bg-success animate-pulse"></div>
-                            <span className="text-xs font-mono text-success font-bold tracking-wide">SYSTEM ONLINE</span>
+                            <span className="text-xs font-mono text-success font-bold tracking-wide hidden sm:inline">SYSTEM ONLINE</span>
+                            <span className="text-xs font-mono text-success font-bold tracking-wide sm:hidden">ONLINE</span>
                          </div>
-                         <div className="hidden md:flex text-xs text-text-muted font-mono">
+                         <div className="hidden lg:flex text-xs text-text-muted font-mono">
                              LATENCY: 12ms | SECTOR: NORTH-07
                          </div>
                     </div>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 md:gap-4">
                         <div className="hidden md:flex items-center bg-background-panel border border-primary-dim rounded-md px-3 py-1.5 w-64 focus-within:border-primary transition-colors">
                             <Search className="w-4 h-4 text-text-muted mr-2" />
                             <input 

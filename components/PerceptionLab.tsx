@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Maximize, AlertTriangle, CheckCircle, Crosshair, History, Cuboid, Video, Filter, Layers } from 'lucide-react';
+import { Camera, Maximize, AlertTriangle, CheckCircle, Crosshair, History, Cuboid, Video, Filter, Layers, Loader2 } from 'lucide-react';
+import { analyzeVisualAnomaly } from '../services/geminiService';
 
 interface LogEntry {
     id: number;
@@ -21,28 +22,36 @@ export const PerceptionLab: React.FC = () => {
     ]);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const threeDCanvasRef = useRef<HTMLCanvasElement>(null);
+    const videoRef = useRef<HTMLVideoElement>(null);
     const [sliderValue, setSliderValue] = useState(50);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-    const handleCapture = () => {
+    const handleCapture = async () => {
         const canvas = canvasRef.current;
         if (!canvas) return;
 
         try {
+            setIsAnalyzing(true);
             // Capture low-res snapshot for log thumbnail
             const snapshot = canvas.toDataURL('image/jpeg', 0.6);
             
+            // Call Gemini Service (or Simulator) to analyze the snapshot
+            const analysis = await analyzeVisualAnomaly(snapshot);
+
             const newLog: LogEntry = {
                 id: Date.now(),
                 timestamp: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-                type: 'CRITICAL',
-                title: 'Anomaly Detected',
-                description: 'Manual snapshot captured by operator.',
+                type: analysis.type,
+                title: analysis.title,
+                description: analysis.description,
                 thumbnail: snapshot
             };
 
             setLogs(prev => [newLog, ...prev]);
         } catch (e) {
-            console.error("Snapshot capture failed (likely CORS on image source):", e);
+            console.error("Snapshot capture failed:", e);
+        } finally {
+            setIsAnalyzing(false);
         }
     };
 
@@ -51,14 +60,15 @@ export const PerceptionLab: React.FC = () => {
         if (viewMode !== 'LIVE') return;
         
         const canvas = canvasRef.current;
-        if (!canvas) return;
+        const video = videoRef.current;
+        if (!canvas || !video) return;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        const img = new Image();
-        img.crossOrigin = "Anonymous";
-        // High-quality industrial wind turbine image
-        img.src = "https://images.unsplash.com/photo-1535083145464-ba729d3d34fa?q=80&w=2600&auto=format&fit=crop";
+        // Ensure video is playing
+        if (video.paused) {
+            video.play().catch(e => console.error("Video play failed:", e));
+        }
 
         let animationFrameId: number;
         let scanLineY = 0;
@@ -76,13 +86,13 @@ export const PerceptionLab: React.FC = () => {
                 }
             }
 
-            // 1. Draw Background Image
-            if (img.complete && img.naturalWidth > 0) {
-                const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
-                const x = (canvas.width / 2) - (img.width / 2) * scale;
-                const y = (canvas.height / 2) - (img.height / 2) * scale;
+            // 1. Draw Video Frame
+            if (video.readyState >= 2) { // HAVE_CURRENT_DATA
+                const scale = Math.max(canvas.width / video.videoWidth, canvas.height / video.videoHeight);
+                const x = (canvas.width / 2) - (video.videoWidth / 2) * scale;
+                const y = (canvas.height / 2) - (video.videoHeight / 2) * scale;
                 
-                ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+                ctx.drawImage(video, x, y, video.videoWidth * scale, video.videoHeight * scale);
             } else {
                 ctx.fillStyle = '#111';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -278,6 +288,19 @@ export const PerceptionLab: React.FC = () => {
                     {viewMode === 'LIVE' && (
                         <>
                             <canvas ref={canvasRef} className="w-full h-full block" />
+                            {/* Hidden Video Source */}
+                            <video 
+                                ref={videoRef}
+                                src="/assets/drone_inspection.mp4"
+                                autoPlay
+                                loop
+                                muted
+                                playsInline
+                                className="hidden"
+                                onLoadedData={() => {
+                                    // Trigger re-render or status update if needed
+                                }}
+                            />
                             
                             {/* Overlay UI */}
                             <div className="absolute inset-0 pointer-events-none">
@@ -286,12 +309,24 @@ export const PerceptionLab: React.FC = () => {
                                 <div className="absolute bottom-8 left-8 border-l-2 border-b-2 border-primary w-8 h-8"></div>
                                 <div className="absolute bottom-8 right-8 border-r-2 border-b-2 border-primary w-8 h-8"></div>
                                 
-                                {/* Simulated Bounding Box */}
-                                <div className="absolute top-[30%] left-[40%] w-32 h-32 border-2 border-alert bg-alert/10 animate-pulse">
-                                    <div className="absolute -top-6 left-0 bg-alert text-black text-xs font-bold px-2 py-0.5">
-                                        CRACK [94%]
+                                {/* Analysis Loading State */}
+                                {isAnalyzing && (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-50">
+                                        <div className="flex flex-col items-center gap-2">
+                                            <Loader2 className="w-10 h-10 text-primary animate-spin" />
+                                            <div className="text-primary font-mono text-sm font-bold animate-pulse">ANALYZING FRAME...</div>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
+
+                                {/* Simulated Bounding Box */}
+                                {!isAnalyzing && (
+                                    <div className="absolute top-[30%] left-[40%] w-32 h-32 border-2 border-alert bg-alert/10 animate-pulse">
+                                        <div className="absolute -top-6 left-0 bg-alert text-black text-xs font-bold px-2 py-0.5">
+                                            CRACK [94%]
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 to-transparent p-6 flex justify-between items-end pointer-events-none">
@@ -307,7 +342,8 @@ export const PerceptionLab: React.FC = () => {
                                 <div className="flex gap-2 pointer-events-auto">
                                     <button 
                                         onClick={handleCapture}
-                                        className="p-2 bg-background-panel border border-primary-dim rounded hover:bg-white/10 text-white transition-colors active:scale-95"
+                                        disabled={isAnalyzing}
+                                        className={`p-2 bg-background-panel border border-primary-dim rounded hover:bg-white/10 text-white transition-colors active:scale-95 ${isAnalyzing ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         title="Log Event & Snapshot"
                                     >
                                         <Camera className="w-5 h-5" />
@@ -396,8 +432,8 @@ export const PerceptionLab: React.FC = () => {
             </div>
 
             {/* Side Panel: Analysis */}
-            <div className="w-80 flex flex-col gap-4">
-                 <div className="bg-background-panel border border-primary-dim rounded-xl p-4 flex-1 flex flex-col">
+            <div className="w-full lg:w-80 flex flex-col gap-4 h-[400px] lg:h-auto flex-shrink-0">
+                 <div className="bg-background-panel border border-primary-dim rounded-xl p-4 flex-1 flex flex-col min-h-0">
                     <div className="flex justify-between items-center mb-4 border-b border-primary-dim pb-2">
                         <h3 className="text-sm font-bold text-white uppercase tracking-wider">
                             Detection Log

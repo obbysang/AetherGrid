@@ -74,33 +74,33 @@ export const Logistics: React.FC = () => {
     if (isLoading) return <div className="p-10 text-white">Loading Logistics Data...</div>;
 
     return (
-        <div className="h-[calc(100vh-8rem)] flex flex-col space-y-6 max-w-[1600px] mx-auto relative">
+        <div className="h-auto lg:h-[calc(100vh-8rem)] flex flex-col space-y-6 max-w-[1600px] mx-auto relative pb-8 lg:pb-0">
             {/* Header */}
-            <div className="flex justify-between items-end flex-shrink-0">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end flex-shrink-0 gap-4 md:gap-0">
                 <div>
-                    <h1 className="text-3xl font-bold text-white tracking-tight mb-1">Logistics & Repair</h1>
-                    <p className="text-text-muted text-sm">Automated Work Order Management • Gemini 3 Pro Logistics Agent</p>
+                    <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight mb-1">Logistics & Repair</h1>
+                    <p className="text-text-muted text-xs md:text-sm">Automated Work Order Management • Gemini 3 Pro Logistics Agent</p>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex gap-3 w-full md:w-auto">
                     <button 
                         onClick={() => setViewMode(viewMode === 'BOARD' ? 'LIST' : 'BOARD')}
-                        className="flex items-center gap-2 px-4 py-2 bg-background-panel border border-primary-dim rounded-lg text-text-muted hover:text-white transition-colors"
+                        className="flex-1 md:flex-none justify-center flex items-center gap-2 px-4 py-2 bg-background-panel border border-primary-dim rounded-lg text-text-muted hover:text-white transition-colors"
                     >
                         {viewMode === 'BOARD' ? <List className="w-4 h-4" /> : <Grid className="w-4 h-4" />}
-                        <span>{viewMode === 'BOARD' ? 'List View' : 'Board View'}</span>
+                        <span>{viewMode === 'BOARD' ? 'List' : 'Board'}</span>
                     </button>
                     <button 
                         onClick={() => setIsModalOpen(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-primary text-background-dark font-bold rounded-lg shadow-[0_0_15px_rgba(6,249,249,0.2)] hover:bg-primary-dark transition-colors"
+                        className="flex-1 md:flex-none justify-center flex items-center gap-2 px-4 py-2 bg-primary text-background-dark font-bold rounded-lg shadow-[0_0_15px_rgba(6,249,249,0.2)] hover:bg-primary-dark transition-colors"
                     >
                         <Plus className="w-4 h-4" />
-                        <span>Dispatch Crew</span>
+                        <span>Dispatch</span>
                     </button>
                 </div>
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-4 gap-4 flex-shrink-0">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-shrink-0">
                 <div className="bg-background-panel border border-primary-dim p-4 rounded-xl flex items-center gap-4">
                     <div className="p-3 bg-primary/10 rounded-lg text-primary"><Clock className="w-6 h-6" /></div>
                     <div>
@@ -133,9 +133,9 @@ export const Logistics: React.FC = () => {
 
             {/* Board View */}
             {viewMode === 'BOARD' && (
-                <div className="flex gap-4 overflow-x-auto flex-1 min-h-0 pb-2">
+                <div className="flex gap-4 overflow-x-auto flex-1 min-h-[500px] lg:min-h-0 pb-4 lg:pb-2 snap-x snap-mandatory lg:snap-none">
                     {ORDER_STATUSES.map((status) => (
-                        <div key={status} className="flex-1 min-w-[280px] bg-background-panel/50 border border-primary-dim rounded-xl flex flex-col h-full">
+                        <div key={status} className="flex-1 min-w-[85vw] md:min-w-[320px] bg-background-panel/50 border border-primary-dim rounded-xl flex flex-col h-full snap-center first:ml-0 last:mr-0">
                             <div className="p-4 border-b border-primary-dim flex justify-between items-center text-white">
                                 <h3 className="font-bold uppercase text-sm tracking-wider text-primary">{status.replace('_', ' ')}</h3>
                                 <span className="text-xs font-mono bg-black/20 px-2 py-0.5 rounded text-white">
@@ -242,8 +242,8 @@ export const Logistics: React.FC = () => {
 
             {/* Create Order Modal */}
             {isModalOpen && (
-                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-background-dark border border-primary-dim rounded-xl w-[500px] shadow-2xl p-6">
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4">
+                    <div className="bg-background-dark border border-primary-dim rounded-xl w-full max-w-[500px] shadow-2xl p-6">
                         <div className="flex justify-between items-center mb-6 border-b border-primary-dim pb-4">
                             <h2 className="text-xl font-bold text-white">Dispatch New Crew</h2>
                             <button onClick={() => setIsModalOpen(false)} className="text-text-muted hover:text-white">

@@ -33,7 +33,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
             <div className="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/80 to-transparent"></div>
             <div className="absolute inset-0 bg-[linear-gradient(rgba(6,249,249,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(6,249,249,0.03)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
 
-            <div className="relative z-10 w-full max-w-md p-8 bg-background-panel/80 backdrop-blur-xl border border-primary-dim rounded-2xl shadow-2xl">
+            <div className="relative z-10 w-full max-w-md p-6 md:p-8 mx-4 bg-background-panel/80 backdrop-blur-xl border border-primary-dim rounded-2xl shadow-2xl">
                 <div className="flex flex-col items-center mb-8">
                     <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center border border-primary mb-4 animate-pulse-slow">
                         <Wind className="w-8 h-8 text-primary" />

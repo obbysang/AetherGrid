@@ -71,9 +71,26 @@ class AI_Simulator {
         if (tier === 'Balanced') return "Optimal ROI. Extends asset life by 3 years with moderate initial outlay.";
         return "Maximum longevity. Includes 5-year warranty and complete subsystem overhaul.";
     }
+
+    static async analyzeVisualSnapshot(imageBase64: string): Promise<{title: string, description: string, type: 'CRITICAL' | 'NORMAL'}> {
+        await new Promise(r => setTimeout(r, 2000)); // Sim processing
+        const outcomes = [
+            { title: "Leading Edge Erosion", description: "Significant wear detected on blade tip. Risk of aerodynamic loss.", type: 'CRITICAL' },
+            { title: "Surface Contamination", description: "Oil/dirt accumulation. Non-critical.", type: 'NORMAL' },
+            { title: "Micro-Crack", description: "Hairline fracture detected near root. Monitor closely.", type: 'CRITICAL' },
+            { title: "Lightning Strike", description: "Charring pattern consistent with lightning impact.", type: 'CRITICAL' }
+        ];
+        return outcomes[Math.floor(Math.random() * outcomes.length)] as any;
+    }
 }
 
 // --- Main Service ---
+
+export const analyzeVisualAnomaly = async (imageBase64: string) => {
+    // In a real scenario, we would send the image to Gemini 1.5 Pro/Flash for analysis
+    // For this demo, we'll use the simulator to ensure responsiveness without requiring an active API key for vision tasks
+    return AI_Simulator.analyzeVisualSnapshot(imageBase64);
+};
 
 export const generateRootCauseAnalysis = async (anomaly: Anomaly, recentTelemetry: TelemetryPoint[]) => {
     const apiKey = getApiKey();

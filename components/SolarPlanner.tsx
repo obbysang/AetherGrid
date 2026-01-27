@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Sun, Map, DollarSign, BatteryCharging, ArrowRight, Layers, MapPin, X, Check, Calculator, Calendar, BarChart3 } from 'lucide-react';
+import { Sun, Map, DollarSign, BatteryCharging, ArrowRight, Layers, MapPin, X, Check, Calculator, Calendar, BarChart3, Search } from 'lucide-react';
 import { executeSolarPlanning } from '../services/geminiService';
 import { SolarPotential } from '../types';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap, Circle, Popup } from 'react-leaflet';
@@ -61,6 +61,8 @@ export const SolarPlanner: React.FC = () => {
     const [analyzing, setAnalyzing] = useState(false);
     const [result, setResult] = useState<SolarPotential | null>(null);
     const [coordinates, setCoordinates] = useState({ lat: 51.5074, lng: -0.1278 });
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isSearching, setIsSearching] = useState(false);
     
     // Financial inputs
     const [electricityRate, setElectricityRate] = useState(0.15); // $/kWh
@@ -91,6 +93,29 @@ export const SolarPlanner: React.FC = () => {
             alert("Failed to analyze solar potential");
         } finally {
             setAnalyzing(false);
+        }
+    };
+
+    const handleSearch = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        if (!searchQuery.trim()) return;
+        
+        setIsSearching(true);
+        try {
+            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`);
+            const data = await response.json();
+            
+            if (data && data.length > 0) {
+                const { lat, lon } = data[0];
+                setCoordinates({ lat: parseFloat(lat), lng: parseFloat(lon) });
+            } else {
+                alert('Location not found');
+            }
+        } catch (error) {
+            console.error('Search failed:', error);
+            alert('Search failed. Please try again.');
+        } finally {
+            setIsSearching(false);
         }
     };
 
@@ -129,41 +154,110 @@ export const SolarPlanner: React.FC = () => {
     }, [result]);
 
     return (
-        <div className="max-w-[1600px] mx-auto space-y-6 h-full flex flex-col overflow-y-auto pb-6">
-            <div className="flex justify-between items-end flex-shrink-0">
+        <div className="max-w-[1600px] mx-auto space-y-6 h-full flex flex-col pb-6">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-end flex-shrink-0 gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-white tracking-tight mb-1">Solar Resource Planner</h1>
                     <p className="text-text-muted text-sm">Rooftop Optimization • Satellite Flux Mapping • Financial Modeling</p>
                 </div>
-                <div className="flex gap-3">
-                     <div className="px-3 py-1 bg-primary/10 border border-primary text-primary rounded text-xs font-mono font-bold flex items-center">
-                        API STATUS: CONNECTED
+                <div className="flex gap-3 items-end">
+                     {/* Search and Location Controls */}
+                     <div className="bg-background-panel border border-primary-dim rounded-lg p-1.5 flex items-center gap-3 shadow-lg">
+                        <div className="flex items-center gap-2">
+                             <Search className="w-4 h-4 text-primary ml-1" />
+                             <form onSubmit={handleSearch} className="flex gap-2">
+                                <input 
+                                    type="text" 
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Search location..."
+                                    className="w-48 bg-background-dark border border-primary-dim rounded px-2 py-1 text-xs text-white placeholder:text-text-muted focus:border-primary outline-none" 
+                                />
+                                <button 
+                                    type="submit"
+                                    disabled={isSearching}
+                                    className="bg-primary/20 hover:bg-primary/30 text-primary border border-primary/50 rounded px-2 py-1 text-xs font-bold transition-colors"
+                                >
+                                    {isSearching ? '...' : 'GO'}
+                                </button>
+                            </form>
+                        </div>
+                        
+                        <div className="w-px h-6 bg-primary-dim"></div>
+
+                        <div className="flex items-center gap-2">
+                             <MapPin className="w-4 h-4 text-primary" />
+                             <div className="flex gap-1">
+                                <input 
+                                    type="number" 
+                                    value={coordinates.lat} 
+                                    onChange={(e) => setCoordinates(prev => ({ ...prev, lat: parseFloat(e.target.value) }))}
+                                    className="w-20 bg-background-dark border border-primary-dim rounded px-2 py-1 text-xs text-white focus:border-primary outline-none" 
+                                    step="0.0001"
+                                />
+                                <input 
+                                    type="number" 
+                                    value={coordinates.lng} 
+                                    onChange={(e) => setCoordinates(prev => ({ ...prev, lng: parseFloat(e.target.value) }))}
+                                    className="w-20 bg-background-dark border border-primary-dim rounded px-2 py-1 text-xs text-white focus:border-primary outline-none" 
+                                    step="0.0001"
+                                />
+                             </div>
+                        </div>
+                     </div>
+
+                     <div className="px-3 py-1 bg-primary/10 border border-primary text-primary rounded text-xs font-mono font-bold flex items-center h-[38px]">
+                        API: CONNECTED
                      </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[600px]">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:min-h-[600px] h-auto">
                 {/* Main Interactive Map - Takes up 7 columns */}
-                <div className="lg:col-span-7 bg-black rounded-xl border border-primary-dim relative overflow-hidden flex flex-col min-h-[500px]">
-                     <div className="absolute top-4 left-4 z-[400] bg-background-dark/90 backdrop-blur-md border border-primary-dim p-3 rounded-lg shadow-xl">
-                        <h3 className="text-white font-bold text-sm flex items-center gap-2 mb-2">
-                            <MapPin className="w-4 h-4 text-primary" /> Target Selection
-                        </h3>
-                        <div className="flex gap-2">
-                            <input 
-                                type="number" 
-                                value={coordinates.lat} 
-                                onChange={(e) => setCoordinates(prev => ({ ...prev, lat: parseFloat(e.target.value) }))}
-                                className="w-24 bg-background-panel border border-primary-dim rounded p-1 text-xs text-white" 
-                                step="0.0001"
-                            />
-                            <input 
-                                type="number" 
-                                value={coordinates.lng} 
-                                onChange={(e) => setCoordinates(prev => ({ ...prev, lng: parseFloat(e.target.value) }))}
-                                className="w-24 bg-background-panel border border-primary-dim rounded p-1 text-xs text-white" 
-                                step="0.0001"
-                            />
+                <div className="lg:col-span-7 bg-black rounded-xl border border-primary-dim relative overflow-hidden flex flex-col min-h-[400px] lg:min-h-[500px]">
+                     <div className="absolute top-4 left-4 z-[400] bg-background-dark/90 backdrop-blur-md border border-primary-dim p-3 rounded-lg shadow-xl space-y-3">
+                        <div>
+                            <h3 className="text-white font-bold text-sm flex items-center gap-2 mb-2">
+                                <Search className="w-4 h-4 text-primary" /> Location Search
+                            </h3>
+                            <form onSubmit={handleSearch} className="flex gap-2">
+                                <input 
+                                    type="text" 
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Enter city or address..."
+                                    className="w-40 bg-background-panel border border-primary-dim rounded p-1 text-xs text-white placeholder:text-text-muted" 
+                                />
+                                <button 
+                                    type="submit"
+                                    disabled={isSearching}
+                                    className="bg-primary/20 hover:bg-primary/30 text-primary border border-primary/50 rounded px-2 py-1 text-xs font-bold transition-colors"
+                                >
+                                    {isSearching ? '...' : 'GO'}
+                                </button>
+                            </form>
+                        </div>
+                        
+                        <div>
+                            <h3 className="text-white font-bold text-sm flex items-center gap-2 mb-2">
+                                <MapPin className="w-4 h-4 text-primary" /> Coordinates
+                            </h3>
+                            <div className="flex gap-2">
+                                <input 
+                                    type="number" 
+                                    value={coordinates.lat} 
+                                    onChange={(e) => setCoordinates(prev => ({ ...prev, lat: parseFloat(e.target.value) }))}
+                                    className="w-24 bg-background-panel border border-primary-dim rounded p-1 text-xs text-white" 
+                                    step="0.0001"
+                                />
+                                <input 
+                                    type="number" 
+                                    value={coordinates.lng} 
+                                    onChange={(e) => setCoordinates(prev => ({ ...prev, lng: parseFloat(e.target.value) }))}
+                                    className="w-24 bg-background-panel border border-primary-dim rounded p-1 text-xs text-white" 
+                                    step="0.0001"
+                                />
+                            </div>
                         </div>
                      </div>
 
@@ -222,7 +316,7 @@ export const SolarPlanner: React.FC = () => {
                 </div>
 
                 {/* Right Panel - Results & Config - Takes up 5 columns */}
-                <div className="lg:col-span-5 space-y-4 flex flex-col h-full overflow-y-auto pr-2">
+                <div className="lg:col-span-5 space-y-4 flex flex-col lg:h-full h-auto lg:overflow-y-auto pr-2">
                     
                     {/* Financial Calculator Inputs */}
                     <div className="bg-background-panel border border-primary-dim rounded-xl p-4">

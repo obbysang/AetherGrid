@@ -118,19 +118,21 @@ export const SiteSupervisor: React.FC = () => {
             </div>
 
             {/* AI Reasoning Section */}
-            <div className="bg-background-panel border border-primary-dim rounded-xl p-6 relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-10">
-                    <Sparkles className="w-32 h-32 text-primary" />
+            <div className="bg-background-panel border border-primary-dim rounded-xl p-4 md:p-6 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+                    <Sparkles className="w-24 h-24 md:w-32 md:h-32 text-primary" />
                 </div>
                 
-                <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-primary/10 rounded-lg border border-primary/30">
-                        <Sparkles className="w-5 h-5 text-primary" />
+                <div className="flex flex-col md:flex-row items-start md:items-center gap-3 mb-4">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-primary/10 rounded-lg border border-primary/30">
+                            <Sparkles className="w-5 h-5 text-primary" />
+                        </div>
+                        <h3 className="text-lg font-bold text-white">Agentic Reasoning Engine</h3>
                     </div>
-                    <h3 className="text-lg font-bold text-white">Agentic Reasoning Engine</h3>
                 </div>
 
-                <div className="bg-background-darker p-6 rounded-lg border border-primary-dim min-h-[100px] flex items-center justify-center relative">
+                <div className="bg-background-darker p-4 md:p-6 rounded-lg border border-primary-dim min-h-[100px] flex items-center justify-center relative">
                     {isLoading ? (
                         <div className="flex flex-col items-center gap-3">
                             <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>

@@ -151,7 +151,7 @@ export const Configuration: React.FC = () => {
     return (
         <div className="max-w-[1200px] mx-auto space-y-8 pb-12">
             {/* Header */}
-            <div className="flex justify-between items-end border-b border-primary-dim pb-6">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-end border-b border-primary-dim pb-6 gap-6">
                 <div>
                     <div className="flex items-center gap-3 mb-2">
                         <h2 className="text-3xl font-bold text-white">System Configuration</h2>
@@ -162,12 +162,12 @@ export const Configuration: React.FC = () => {
                     <p className="text-text-muted">Global Parameters & Orchestration Settings</p>
                 </div>
                 
-                <div className="flex flex-col items-end gap-2">
+                <div className="flex flex-col items-start md:items-end gap-2 w-full md:w-auto">
                     <button 
                         onClick={handleSave}
                         disabled={status === 'saving'}
                         className={`
-                            flex items-center gap-2 px-6 py-2.5 rounded font-bold transition-all
+                            flex items-center justify-center gap-2 px-6 py-2.5 rounded font-bold transition-all w-full md:w-auto
                             ${status === 'saving'
                                 ? 'bg-primary-dim text-primary border border-primary cursor-wait' 
                                 : status === 'success'

@@ -50,12 +50,12 @@ export const MissionControl: React.FC = () => {
 
     return (
         <div className="space-y-6 max-w-[1600px] mx-auto">
-            <div className="flex justify-between items-end">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-white tracking-tight mb-1">Mission Control</h1>
                     <p className="text-text-muted text-sm">Real-time infrastructure monitoring • Grid Sector 7</p>
                 </div>
-                <div className="text-right">
+                <div className="text-left md:text-right">
                     <p className="text-xs text-text-muted font-mono uppercase">Last Sync</p>
                     <p className="text-primary font-bold font-mono">LIVE: {telemetry.time}</p>
                 </div>
@@ -101,9 +101,9 @@ export const MissionControl: React.FC = () => {
                 />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:h-[600px] h-auto">
                 {/* Map Placeholder */}
-                <div className="lg:col-span-2 bg-background-panel border border-primary-dim rounded-xl overflow-hidden relative group">
+                <div className="lg:col-span-2 bg-background-panel border border-primary-dim rounded-xl overflow-hidden relative group min-h-[400px] lg:min-h-0">
                      <div className="absolute inset-0 bg-[url('https://picsum.photos/1200/800?grayscale&blur=2')] bg-cover opacity-20 mix-blend-overlay"></div>
                      <div className="absolute inset-0 bg-gradient-to-t from-background-dark via-transparent to-transparent"></div>
                      
