@@ -4,71 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AetherGrid Sentinel</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        primary: {
-                            DEFAULT: '#06f9f9', // Electric Cyan
-                            dim: 'rgba(6, 249, 249, 0.1)',
-                            dark: '#04caca',
-                        },
-                        background: {
-                            dark: '#0f2323', // Deep Slate
-                            darker: '#0b1a1a',
-                            panel: '#162e2e',
-                        },
-                        alert: {
-                            DEFAULT: '#fa5c38', // Safety Orange
-                            dim: 'rgba(250, 92, 56, 0.1)',
-                        },
-                        success: '#0bda50',
-                        text: {
-                            main: '#ffffff',
-                            muted: '#8ecccc',
-                        }
-                    },
-                    fontFamily: {
-                        sans: ['Space Grotesk', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'monospace'],
-                    },
-                    animation: {
-                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #0b1a1a; 
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #214a4a; 
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #06f9f9; 
-        }
-        body {
-            background-color: #0f2323;
-            color: white;
-        }
-    </style>
+    <script type="module" src="/index.tsx"></script>
 <script type="importmap">
 {
   "imports": {
