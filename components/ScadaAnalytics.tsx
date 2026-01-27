@@ -1,8 +1,11 @@
-import React from 'react';
+
+import React, { useEffect, useState } from 'react';
 import { 
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area 
 } from 'recharts';
-import { MOCK_TELEMETRY, COLORS } from '../constants';
+import { COLORS } from '../constants';
+import { scadaService } from '../services/scadaService';
+import { TelemetryPoint } from '../types';
 
 const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -22,6 +25,15 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export const ScadaAnalytics: React.FC = () => {
+    const [history, setHistory] = useState<TelemetryPoint[]>(scadaService.getHistory());
+
+    useEffect(() => {
+        const unsubscribe = scadaService.subscribe((_, fullHistory) => {
+            setHistory([...fullHistory]); // Create copy to trigger re-render
+        });
+        return unsubscribe;
+    }, []);
+
     return (
         <div className="space-y-6 max-w-[1600px] mx-auto h-full flex flex-col">
             <div className="flex justify-between items-center flex-shrink-0">
@@ -42,7 +54,7 @@ export const ScadaAnalytics: React.FC = () => {
                     </h3>
                     <div className="flex-1 w-full min-h-0">
                         <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={MOCK_TELEMETRY}>
+                            <AreaChart data={history}>
                                 <defs>
                                     <linearGradient id="colorPower" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor={COLORS.primary} stopOpacity={0.3}/>
@@ -50,13 +62,13 @@ export const ScadaAnalytics: React.FC = () => {
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" stroke={COLORS.grid} opacity={0.2} />
-                                <XAxis dataKey="time" stroke={COLORS.grid} tick={{fontSize: 10, fill: '#8ecccc'}} />
+                                <XAxis dataKey="time" stroke={COLORS.grid} tick={{fontSize: 10, fill: '#8ecccc'}} interval={Math.floor(history.length / 5)} />
                                 <YAxis stroke={COLORS.grid} tick={{fontSize: 10, fill: '#8ecccc'}} />
                                 <Tooltip content={<CustomTooltip />} />
                                 <Area 
                                     type="monotone" 
                                     dataKey="power" 
-                                    name="Power (MW)" 
+                                    name="Power (kW)" 
                                     stroke={COLORS.primary} 
                                     fillOpacity={1} 
                                     fill="url(#colorPower)" 
@@ -71,6 +83,7 @@ export const ScadaAnalytics: React.FC = () => {
                                     dot={false}
                                     strokeDasharray="4 4" 
                                     opacity={0.5}
+                                    yAxisId={0}
                                 />
                             </AreaChart>
                         </ResponsiveContainer>
@@ -85,10 +98,10 @@ export const ScadaAnalytics: React.FC = () => {
                     </h3>
                     <div className="flex-1 w-full min-h-0">
                         <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={MOCK_TELEMETRY}>
+                            <LineChart data={history}>
                                 <CartesianGrid strokeDasharray="3 3" stroke={COLORS.grid} opacity={0.2} />
-                                <XAxis dataKey="time" stroke={COLORS.grid} tick={{fontSize: 10, fill: '#8ecccc'}} />
-                                <YAxis stroke={COLORS.grid} tick={{fontSize: 10, fill: '#8ecccc'}} />
+                                <XAxis dataKey="time" stroke={COLORS.grid} tick={{fontSize: 10, fill: '#8ecccc'}} interval={Math.floor(history.length / 5)} />
+                                <YAxis stroke={COLORS.grid} tick={{fontSize: 10, fill: '#8ecccc'}} domain={[0, 'auto']} />
                                 <Tooltip content={<CustomTooltip />} />
                                 <Line 
                                     type="monotone" 
@@ -96,8 +109,16 @@ export const ScadaAnalytics: React.FC = () => {
                                     name="Vib (mm/s)" 
                                     stroke={COLORS.alert} 
                                     strokeWidth={2} 
-                                    dot={{ r: 3, fill: COLORS.alert }}
+                                    dot={false}
                                     activeDot={{ r: 6 }}
+                                />
+                                <Line 
+                                    type="monotone" 
+                                    dataKey="temperature" 
+                                    name="Temp (C)" 
+                                    stroke="#fbbf24" 
+                                    strokeWidth={1} 
+                                    dot={false}
                                 />
                             </LineChart>
                         </ResponsiveContainer>
@@ -115,10 +136,10 @@ export const ScadaAnalytics: React.FC = () => {
                     </div>
                 </div>
                 <div className="flex-1 overflow-y-auto font-mono text-xs text-text-muted custom-scrollbar p-2 bg-black/20 rounded">
-                    {MOCK_TELEMETRY.slice().reverse().map((pt, i) => (
+                    {history.slice().reverse().map((pt, i) => (
                         <div key={i} className="mb-1 hover:bg-white/5 p-1 rounded">
                             <span className="text-primary opacity-60 mr-3">{pt.time}</span>
-                            <span className="text-white opacity-80">{`{ "asset": "WTG-04", "pwr": ${pt.power.toFixed(2)}, "vib": ${pt.vibration.toFixed(2)}, "temp": ${pt.temperature.toFixed(1)} }`}</span>
+                            <span className="text-white opacity-80">{`{ "asset": "WTG-04", "pwr": ${pt.power.toFixed(0)}, "vib": ${pt.vibration.toFixed(2)}, "temp": ${pt.temperature.toFixed(1)}, "pitch": ${pt.pitchAngle.toFixed(1)} }`}</span>
                         </div>
                     ))}
                 </div>

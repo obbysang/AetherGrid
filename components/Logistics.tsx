@@ -1,20 +1,16 @@
-import React, { useState } from 'react';
+
+import React, { useEffect, useState } from 'react';
 import { WorkOrder } from '../types';
 import { Calendar, Truck, Clock, CheckCircle, AlertOctagon, MoreHorizontal, User, Plus, X, ArrowRight, ArrowLeft, List, Grid } from 'lucide-react';
-
-const INITIAL_WORK_ORDERS: WorkOrder[] = [
-    { id: 'WO-2026-0127-001', title: 'Blade Erosion Repair', assetId: 'WTG-042', status: 'PENDING', priority: 'CRITICAL', estimatedDuration: 6, partsRequired: ['Leading Edge Kit', 'Epoxy'] },
-    { id: 'WO-2026-0126-055', title: 'Gearbox Oil Change', assetId: 'WTG-011', status: 'SCHEDULED', priority: 'MEDIUM', assignedCrew: 'Team Alpha', scheduledDate: '2026-02-12', estimatedDuration: 4, partsRequired: ['Oil Filter', 'Lubricant'] },
-    { id: 'WO-2026-0126-042', title: 'Inverter Replacement', assetId: 'SOL-105', status: 'IN_PROGRESS', priority: 'HIGH', assignedCrew: 'Team Bravo', scheduledDate: '2026-02-10', estimatedDuration: 8, partsRequired: ['Inverter Unit X5'] },
-    { id: 'WO-2026-0125-019', title: 'Sensor Calibration', assetId: 'WTG-033', status: 'COMPLETED', priority: 'LOW', assignedCrew: 'Team Alpha', scheduledDate: '2026-02-08', estimatedDuration: 2, partsRequired: [] },
-];
+import { logisticsService } from '../services/logisticsService';
 
 const ORDER_STATUSES: WorkOrder['status'][] = ['PENDING', 'SCHEDULED', 'IN_PROGRESS', 'COMPLETED'];
 
 export const Logistics: React.FC = () => {
-    const [orders, setOrders] = useState<WorkOrder[]>(INITIAL_WORK_ORDERS);
+    const [orders, setOrders] = useState<WorkOrder[]>([]);
     const [viewMode, setViewMode] = useState<'BOARD' | 'LIST'>('BOARD');
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     
     // Form State
     const [newOrder, setNewOrder] = useState<Partial<WorkOrder>>({
@@ -24,47 +20,45 @@ export const Logistics: React.FC = () => {
         estimatedDuration: 4
     });
 
-    const handleStatusChange = (id: string, direction: 'NEXT' | 'PREV') => {
-        setOrders(prev => prev.map(order => {
-            if (order.id !== id) return order;
-            
-            const currentIndex = ORDER_STATUSES.indexOf(order.status);
-            let newIndex = direction === 'NEXT' ? currentIndex + 1 : currentIndex - 1;
-            
-            // Bounds check
-            if (newIndex < 0) newIndex = 0;
-            if (newIndex >= ORDER_STATUSES.length) newIndex = ORDER_STATUSES.length - 1;
-            
-            const newStatus = ORDER_STATUSES[newIndex];
-            
-            // Auto-assign logic simulation
-            let updates: Partial<WorkOrder> = { status: newStatus };
-            if (newStatus === 'SCHEDULED' && !order.assignedCrew) {
-                updates.assignedCrew = 'Auto-Dispatch Bot';
-                updates.scheduledDate = new Date().toISOString().split('T')[0];
-            }
-            
-            return { ...order, ...updates };
-        }));
+    useEffect(() => {
+        // Load initial orders
+        setOrders(logisticsService.getOrders());
+        setIsLoading(false);
+    }, []);
+
+    const handleStatusChange = async (id: string, direction: 'NEXT' | 'PREV') => {
+        const order = orders.find(o => o.id === id);
+        if (!order) return;
+
+        const currentIndex = ORDER_STATUSES.indexOf(order.status);
+        let newIndex = direction === 'NEXT' ? currentIndex + 1 : currentIndex - 1;
+        
+        if (newIndex < 0 || newIndex >= ORDER_STATUSES.length) return;
+        
+        const newStatus = ORDER_STATUSES[newIndex];
+        
+        // Optimistic UI update
+        setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus } : o));
+
+        try {
+            await logisticsService.updateOrder(id, { status: newStatus });
+        } catch (e) {
+            // Revert on failure
+            setOrders(prev => prev.map(o => o.id === id ? order : o));
+            alert("Failed to update order status");
+        }
     };
 
-    const handleCreateOrder = (e: React.FormEvent) => {
+    const handleCreateOrder = async (e: React.FormEvent) => {
         e.preventDefault();
-        const id = `WO-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000)}`;
-        const order: WorkOrder = {
-            id,
-            title: newOrder.title || 'Untitled Maintenance',
-            assetId: newOrder.assetId || 'UNK-00',
-            status: 'PENDING',
-            priority: newOrder.priority as any,
-            estimatedDuration: newOrder.estimatedDuration || 2,
-            partsRequired: [],
-            ...newOrder
-        } as WorkOrder; // Type casting for simplicity
-
-        setOrders(prev => [order, ...prev]);
-        setIsModalOpen(false);
-        setNewOrder({ title: '', assetId: '', priority: 'MEDIUM', estimatedDuration: 4 });
+        try {
+            const created = await logisticsService.createWorkOrder(newOrder);
+            setOrders(prev => [created, ...prev]);
+            setIsModalOpen(false);
+            setNewOrder({ title: '', assetId: '', priority: 'MEDIUM', estimatedDuration: 4 });
+        } catch (e) {
+            alert("Failed to create work order");
+        }
     };
 
     const getStats = () => {
@@ -76,6 +70,8 @@ export const Logistics: React.FC = () => {
     };
 
     const stats = getStats();
+
+    if (isLoading) return <div className="p-10 text-white">Loading Logistics Data...</div>;
 
     return (
         <div className="h-[calc(100vh-8rem)] flex flex-col space-y-6 max-w-[1600px] mx-auto relative">

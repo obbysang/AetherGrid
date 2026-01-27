@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Layout } from './components/Layout';
 import { MissionControl } from './components/MissionControl';
 import { PerceptionLab } from './components/PerceptionLab';
@@ -7,10 +8,19 @@ import { SiteSupervisor } from './components/SiteSupervisor';
 import { Configuration } from './components/Configuration';
 import { Logistics } from './components/Logistics';
 import { SolarPlanner } from './components/SolarPlanner';
+import { Login } from './components/Login';
 import { View } from './types';
+import { authService } from './services/authService';
 
 const App: React.FC = () => {
     const [currentView, setCurrentView] = useState<View>(View.MISSION_CONTROL);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        setIsAuthenticated(authService.isAuthenticated());
+        setIsLoading(false);
+    }, []);
 
     const renderView = () => {
         switch (currentView) {
@@ -32,6 +42,12 @@ const App: React.FC = () => {
                 return <MissionControl />;
         }
     };
+
+    if (isLoading) return null;
+
+    if (!isAuthenticated) {
+        return <Login onLogin={() => setIsAuthenticated(true)} />;
+    }
 
     return (
         <Layout currentView={currentView} onNavigate={setCurrentView}>

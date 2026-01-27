@@ -1,6 +1,7 @@
-import React from 'react';
+
+import React, { useEffect, useState } from 'react';
 import { Zap, Activity, AlertTriangle, Wind } from 'lucide-react';
-import { MOCK_ANOMALIES } from '../constants';
+import { scadaService } from '../services/scadaService';
 import { Anomaly } from '../types';
 
 const StatCard = ({ title, value, unit, trend, trendUp, icon: Icon, color }: any) => (
@@ -17,13 +18,36 @@ const StatCard = ({ title, value, unit, trend, trendUp, icon: Icon, color }: any
             <span className="text-sm text-text-muted mb-1 font-mono">{unit}</span>
         </div>
         <div className={`text-xs font-bold mt-2 flex items-center gap-1 ${trendUp ? 'text-success' : 'text-alert'}`}>
-            <span>{trend > 0 ? '+' : ''}{trend}%</span>
+            <span>{trend > 0 ? '+' : ''}{Math.abs(trend).toFixed(1)}%</span>
             <span className="text-text-muted font-normal">vs last hr</span>
         </div>
     </div>
 );
 
 export const MissionControl: React.FC = () => {
+    const [telemetry, setTelemetry] = useState(scadaService.getLatest());
+    const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
+
+    useEffect(() => {
+        // Subscribe to real-time SCADA updates
+        const unsubscribe = scadaService.subscribe((point) => {
+            setTelemetry(point);
+            
+            // Periodically check for anomalies (simulated AI trigger)
+            scadaService.analyzeTelemetry(60).then(result => {
+                if (result.anomalyDetected) {
+                    setAnomalies(prev => {
+                        const newAnomalies = result.anomalies.filter(a => !prev.find(p => p.id === a.id));
+                        return [...newAnomalies, ...prev].slice(0, 10);
+                    });
+                }
+            });
+        });
+        return unsubscribe;
+    }, []);
+
+    if (!telemetry) return <div className="p-10 text-white">Initializing SCADA Uplink...</div>;
+
     return (
         <div className="space-y-6 max-w-[1600px] mx-auto">
             <div className="flex justify-between items-end">
@@ -33,7 +57,7 @@ export const MissionControl: React.FC = () => {
                 </div>
                 <div className="text-right">
                     <p className="text-xs text-text-muted font-mono uppercase">Last Sync</p>
-                    <p className="text-primary font-bold font-mono">T-MINUS 00:03s</p>
+                    <p className="text-primary font-bold font-mono">LIVE: {telemetry.time}</p>
                 </div>
             </div>
 
@@ -41,7 +65,7 @@ export const MissionControl: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard 
                     title="Energy Output" 
-                    value="452.8" 
+                    value={(telemetry.power / 1000).toFixed(2)} 
                     unit="MW" 
                     trend={2.4} 
                     trendUp={true} 
@@ -59,7 +83,7 @@ export const MissionControl: React.FC = () => {
                 />
                 <StatCard 
                     title="Active Alerts" 
-                    value="3" 
+                    value={anomalies.length} 
                     unit="CRIT" 
                     trend={10} 
                     trendUp={false} 
@@ -68,7 +92,7 @@ export const MissionControl: React.FC = () => {
                 />
                 <StatCard 
                     title="Avg Wind Speed" 
-                    value="12.4" 
+                    value={telemetry.windSpeed.toFixed(1)} 
                     unit="m/s" 
                     trend={1.2} 
                     trendUp={true} 
@@ -99,14 +123,16 @@ export const MissionControl: React.FC = () => {
                      </div>
 
                      {/* Interactive Dots (Simulated) */}
-                     <div className="absolute top-[30%] left-[45%]">
-                        <div className="relative group/marker cursor-pointer">
-                            <div className="w-4 h-4 bg-alert rounded-full border-2 border-white shadow-[0_0_15px_#fa5c38] animate-pulse"></div>
-                             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-background-dark border border-alert text-white text-xs p-2 rounded whitespace-nowrap hidden group-hover/marker:block z-20">
-                                WTG-04: Critical Vibration
-                             </div>
-                        </div>
-                     </div>
+                     {telemetry.vibration > 4 && (
+                         <div className="absolute top-[30%] left-[45%]">
+                            <div className="relative group/marker cursor-pointer">
+                                <div className="w-4 h-4 bg-alert rounded-full border-2 border-white shadow-[0_0_15px_#fa5c38] animate-pulse"></div>
+                                 <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-background-dark border border-alert text-white text-xs p-2 rounded whitespace-nowrap hidden group-hover/marker:block z-20">
+                                    WTG-04: Critical Vibration ({(telemetry.vibration).toFixed(1)}mm/s)
+                                 </div>
+                            </div>
+                         </div>
+                     )}
                      
                      <div className="absolute top-[50%] left-[60%]">
                         <div className="relative group/marker cursor-pointer">
@@ -125,10 +151,10 @@ export const MissionControl: React.FC = () => {
                         <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_#06f9f9]"></div>
                     </div>
                     <div className="flex-1 overflow-y-auto p-0 font-mono text-xs">
-                        {MOCK_ANOMALIES.map((anomaly, idx) => (
+                        {anomalies.map((anomaly, idx) => (
                             <div key={idx} className={`p-3 border-b border-primary-dim/30 hover:bg-white/5 transition-colors border-l-2 ${anomaly.severity === 'CRITICAL' ? 'border-l-alert bg-alert/5' : 'border-l-primary/50'}`}>
                                 <div className="flex justify-between mb-1 opacity-70">
-                                    <span>{anomaly.timestamp}</span>
+                                    <span>{new Date(anomaly.timestamp).toLocaleTimeString()}</span>
                                     <span>{anomaly.id}</span>
                                 </div>
                                 <div className={`font-bold mb-1 ${anomaly.severity === 'CRITICAL' ? 'text-alert' : 'text-white'}`}>
@@ -139,16 +165,23 @@ export const MissionControl: React.FC = () => {
                                 </div>
                             </div>
                         ))}
-                        {/* Filler logs */}
-                        {[1, 2, 3, 4].map((i) => (
-                             <div key={`log-${i}`} className="p-3 border-b border-primary-dim/30 hover:bg-white/5 transition-colors border-l-2 border-l-transparent opacity-50">
-                                <div className="flex justify-between mb-1">
-                                    <span>10:{40-i}:12</span>
-                                    <span>SYS-LOG</span>
-                                </div>
-                                <div className="text-text-muted">Routine diagnostic scan completed. Asset WTG-{10+i} nominal.</div>
+                        {anomalies.length === 0 && (
+                             <div className="p-3 text-text-muted opacity-50 italic">
+                                 No active anomalies detected in current window.
+                             </div>
+                        )}
+                        {/* System Heartbeat Log */}
+                        <div className="p-3 border-b border-primary-dim/30 hover:bg-white/5 transition-colors border-l-2 border-l-transparent opacity-50">
+                            <div className="flex justify-between mb-1">
+                                <span>{telemetry.time}</span>
+                                <span>SYS-LOG</span>
                             </div>
-                        ))}
+                            <div className="text-text-muted">
+                                SCADA Telemetry Stream Active. 
+                                Vib: {telemetry.vibration.toFixed(2)} | 
+                                Temp: {telemetry.temperature.toFixed(1)}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -1,44 +1,61 @@
+
 import { Anomaly, RepairStrategy, TelemetryPoint } from "./types";
 
-export const MOCK_TELEMETRY: TelemetryPoint[] = Array.from({ length: 20 }, (_, i) => ({
-    time: `10:${30 + i}:00`,
-    power: 2.0 + Math.random() * 0.5,
-    windSpeed: 10 + Math.random() * 5,
-    vibration: 2.0 + Math.random() * (i > 15 ? 4 : 1), // Spike at end
-    rotorSpeed: 14 + Math.random() * 0.5,
-    temperature: 45 + Math.random() * 5
-}));
+const generateMockTelemetry = (): TelemetryPoint[] => {
+    const points: TelemetryPoint[] = [];
+    const now = new Date();
+    
+    for (let i = 0; i < 20; i++) {
+        const time = new Date(now.getTime() - (20 - i) * 60000);
+        points.push({
+            time: time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            timestamp: time.toISOString(),
+            power: 1800 + Math.random() * 500, // kW
+            windSpeed: 8 + Math.random() * 4, // m/s
+            vibration: 1.5 + Math.random() * (i > 15 ? 4 : 1), // mm/s
+            rotorSpeed: 12 + Math.random() * 2, // RPM
+            temperature: 60 + Math.random() * 10, // C
+            pitchAngle: 4 + Math.random() * 2 // deg
+        });
+    }
+    return points;
+};
+
+export const MOCK_TELEMETRY: TelemetryPoint[] = generateMockTelemetry();
 
 export const MOCK_ANOMALIES: Anomaly[] = [
     {
         id: "ANM-2024-884",
-        timestamp: "10:48:12",
-        type: "VIBRATION",
+        timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+        type: "VibrationSpike",
         severity: "CRITICAL",
         confidence: 0.98,
         description: "Nacelle vibration exceeding 8.5mm/s threshold on Axis-Y.",
         assetId: "WTG-04",
-        status: "OPEN"
+        status: "OPEN",
+        recommendedAction: "Immediate shutdown and inspection"
     },
     {
         id: "ANM-2024-881",
-        timestamp: "10:15:00",
-        type: "EROSION",
+        timestamp: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+        type: "LeadingEdgeErosion",
         severity: "MEDIUM",
         confidence: 0.89,
         description: "Leading edge erosion detected on Blade B (Zone 4).",
         assetId: "WTG-04",
-        status: "INVESTIGATING"
+        status: "INVESTIGATING",
+        recommendedAction: "Schedule repair within 30 days"
     },
     {
         id: "ANM-2024-875",
-        timestamp: "09:30:00",
-        type: "THERMAL",
+        timestamp: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
+        type: "ThermalHotspot",
         severity: "LOW",
         confidence: 0.76,
         description: "Minor thermal hotspot detected on solar array inverter connection.",
         assetId: "SOL-12",
-        status: "RESOLVED"
+        status: "RESOLVED",
+        recommendedAction: "Monitor for recurrence"
     }
 ];
 
@@ -51,7 +68,8 @@ export const REPAIR_STRATEGIES: RepairStrategy[] = [
         lifeExtension: 0.5,
         riskLevel: 'High',
         description: 'Minimal intervention. Addresses symptoms but not root cause.',
-        recommended: false
+        recommended: false,
+        warranty: '90 days'
     },
     {
         tier: 'Balanced',
@@ -61,7 +79,8 @@ export const REPAIR_STRATEGIES: RepairStrategy[] = [
         lifeExtension: 3.0,
         riskLevel: 'Low',
         description: 'Replace bearing race and seals. Optimal balance of cost vs longevity.',
-        recommended: true
+        recommended: true,
+        warranty: '2 years'
     },
     {
         tier: 'Luxury',
@@ -71,7 +90,8 @@ export const REPAIR_STRATEGIES: RepairStrategy[] = [
         lifeExtension: 10.0,
         riskLevel: 'Zero',
         description: 'Complete Gen-5 yaw system installation with upgraded sensors.',
-        recommended: false
+        recommended: false,
+        warranty: '5 years'
     }
 ];
 
