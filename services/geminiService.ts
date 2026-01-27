@@ -1,8 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { Anomaly, TelemetryPoint } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
-
 // Defined in Technical Specification: Page 5
 const MISSION_CONTROL_INSTRUCTION = `
 Role: AetherGrid Mission Control Orchestrator
@@ -16,6 +14,8 @@ Operational Protocol:
 
 export const generateRootCauseAnalysis = async (anomaly: Anomaly, recentTelemetry: TelemetryPoint[]) => {
     try {
+        // Instantiate client per-request to capture dynamic API_KEY updates
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const telemetryContext = JSON.stringify(recentTelemetry.slice(-10));
         
         const prompt = `
@@ -47,6 +47,7 @@ export const generateRootCauseAnalysis = async (anomaly: Anomaly, recentTelemetr
 
 export const generateStrategyJustification = async (tier: string, cost: number, lifeExt: number) => {
     try {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const prompt = `
         You are the Planning Agent (Antigravity Platform).
         Justify the selection of the "${tier}" repair tier (Cost: $${cost}, Life Extension: +${lifeExt} yrs).
