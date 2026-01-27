@@ -1,9 +1,46 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera, Maximize, AlertTriangle, CheckCircle, Crosshair } from 'lucide-react';
 
+interface LogEntry {
+    id: number;
+    timestamp: string;
+    type: 'CRITICAL' | 'NORMAL';
+    title: string;
+    description: string;
+    thumbnail?: string;
+}
+
 export const PerceptionLab: React.FC = () => {
     const [selectedFeed, setSelectedFeed] = useState('WTG-048');
+    const [logs, setLogs] = useState<LogEntry[]>([
+        { id: 1, timestamp: '09:41:12', type: 'CRITICAL', title: 'Micro-fracture', description: 'Confidence 94%. Zone 4 blade root.' },
+        { id: 2, timestamp: '09:42:12', type: 'NORMAL', title: 'Surface Scan', description: 'Routine structural integrity check passed.' },
+        { id: 3, timestamp: '09:43:12', type: 'NORMAL', title: 'Surface Scan', description: 'Routine structural integrity check passed.' },
+    ]);
     const canvasRef = useRef<HTMLCanvasElement>(null);
+
+    const handleCapture = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        try {
+            // Capture low-res snapshot for log thumbnail
+            const snapshot = canvas.toDataURL('image/jpeg', 0.6);
+            
+            const newLog: LogEntry = {
+                id: Date.now(),
+                timestamp: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                type: 'CRITICAL',
+                title: 'Anomaly Detected',
+                description: 'Manual snapshot captured by operator.',
+                thumbnail: snapshot
+            };
+
+            setLogs(prev => [newLog, ...prev]);
+        } catch (e) {
+            console.error("Snapshot capture failed (likely CORS on image source):", e);
+        }
+    };
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -137,7 +174,11 @@ export const PerceptionLab: React.FC = () => {
                             </div>
                         </div>
                         <div className="flex gap-2 pointer-events-auto">
-                             <button className="p-2 bg-background-panel border border-primary-dim rounded hover:bg-white/10 text-white transition-colors">
+                             <button 
+                                onClick={handleCapture}
+                                className="p-2 bg-background-panel border border-primary-dim rounded hover:bg-white/10 text-white transition-colors active:scale-95"
+                                title="Log Event & Snapshot"
+                             >
                                 <Camera className="w-5 h-5" />
                              </button>
                              <button className="p-2 bg-background-panel border border-primary-dim rounded hover:bg-white/10 text-white transition-colors">
@@ -155,21 +196,27 @@ export const PerceptionLab: React.FC = () => {
                         Detection Log
                     </h3>
                     <div className="space-y-3 overflow-y-auto flex-1 custom-scrollbar pr-2">
-                        {[1, 2, 3].map((i) => (
-                            <div key={i} className="bg-background-dark/50 p-3 rounded border border-primary-dim/30 hover:border-primary/50 transition-colors cursor-pointer group">
+                        {logs.map((log) => (
+                            <div key={log.id} className="bg-background-dark/50 p-3 rounded border border-primary-dim/30 hover:border-primary/50 transition-colors cursor-pointer group">
                                 <div className="flex justify-between items-start mb-1">
-                                    <span className="text-xs text-text-muted font-mono">09:4{i}:12</span>
-                                    <span className={`text-xs font-bold px-1.5 rounded ${i === 1 ? 'bg-alert/20 text-alert' : 'bg-success/20 text-success'}`}>
-                                        {i === 1 ? 'CRITICAL' : 'NORMAL'}
+                                    <span className="text-xs text-text-muted font-mono">{log.timestamp}</span>
+                                    <span className={`text-xs font-bold px-1.5 rounded ${log.type === 'CRITICAL' ? 'bg-alert/20 text-alert' : 'bg-success/20 text-success'}`}>
+                                        {log.type}
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-2 text-sm text-white font-medium mb-1">
-                                    {i === 1 ? <AlertTriangle className="w-4 h-4 text-alert" /> : <CheckCircle className="w-4 h-4 text-success" />}
-                                    {i === 1 ? 'Micro-fracture' : 'Surface Scan'}
+                                    {log.type === 'CRITICAL' ? <AlertTriangle className="w-4 h-4 text-alert" /> : <CheckCircle className="w-4 h-4 text-success" />}
+                                    {log.title}
                                 </div>
                                 <div className="text-xs text-text-muted">
-                                    {i === 1 ? 'Confidence 94%. Zone 4 blade root.' : 'Routine structural integrity check passed.'}
+                                    {log.description}
                                 </div>
+                                {log.thumbnail && (
+                                    <div className="mt-2 rounded-lg overflow-hidden border border-primary-dim/50 relative group-hover:border-primary/50 transition-colors">
+                                        <div className="absolute inset-0 bg-primary/10 mix-blend-overlay"></div>
+                                        <img src={log.thumbnail} alt="Event Snapshot" className="w-full h-auto object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>
