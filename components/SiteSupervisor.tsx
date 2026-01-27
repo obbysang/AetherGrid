@@ -12,12 +12,22 @@ export const SiteSupervisor: React.FC = () => {
     const handleGenerateReasoning = async (tier: string, cost: number, lifeExt: number) => {
         setIsLoading(true);
         setAiReasoning(null);
-        // Simulate network delay for effect
-        setTimeout(async () => {
+        
+        try {
+            // Simulate network delay for effect
+            await new Promise(r => setTimeout(r, 800));
             const reasoning = await generateStrategyJustification(tier, cost, lifeExt);
             setAiReasoning(reasoning || "Analysis failed.");
+        } catch (error: any) {
+            if (error.message === "MISSING_API_KEY") {
+                setAiReasoning("⚠️ API Key required. Please configure it in the Configuration tab.");
+            } else {
+                console.error(error);
+                setAiReasoning("Analysis failed.");
+            }
+        } finally {
             setIsLoading(false);
-        }, 800);
+        }
     };
 
     return (

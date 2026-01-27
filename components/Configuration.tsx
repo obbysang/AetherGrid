@@ -45,6 +45,8 @@ export const Configuration: React.FC = () => {
     const [status, setStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
     const [message, setMessage] = useState('');
     const [hasApiKey, setHasApiKey] = useState(false);
+    const [showKeyInput, setShowKeyInput] = useState(false);
+    const [apiKeyInput, setApiKeyInput] = useState('');
 
     // Jitter effect for system health monitoring
     const [latencies, setLatencies] = useState({ api: 45, scada: 12, db: 120 });
@@ -68,7 +70,7 @@ export const Configuration: React.FC = () => {
         if ((window as any).aistudio && (window as any).aistudio.hasSelectedApiKey) {
             const has = await (window as any).aistudio.hasSelectedApiKey();
             setHasApiKey(has);
-        } else if (process.env.API_KEY) {
+        } else if (process.env.API_KEY || localStorage.getItem('gemini_api_key')) {
             setHasApiKey(true);
         }
     };
@@ -79,8 +81,24 @@ export const Configuration: React.FC = () => {
             // Assume success after dialog interaction to avoid race conditions
             setHasApiKey(true);
         } else {
-            setMessage("API Key selection not supported in this environment.");
-            setStatus('error');
+            // Fallback for local development
+            setShowKeyInput(!showKeyInput);
+            setMessage("");
+        }
+    };
+
+    const handleSaveKey = () => {
+        if (apiKeyInput.trim().length > 0) {
+            localStorage.setItem('gemini_api_key', apiKeyInput.trim());
+            setHasApiKey(true);
+            setShowKeyInput(false);
+            setApiKeyInput('');
+            setMessage("API Key saved locally.");
+            setStatus('success');
+            setTimeout(() => {
+                setStatus('idle');
+                setMessage('');
+            }, 3000);
         }
     };
 
@@ -207,11 +225,30 @@ export const Configuration: React.FC = () => {
                                 onClick={handleKeySelection}
                                 className={`px-4 py-2 rounded text-xs font-bold border transition-colors ${hasApiKey ? 'border-primary-dim text-text-muted hover:text-white hover:bg-white/5' : 'bg-primary text-background-dark hover:bg-primary-dark'}`}
                             >
-                                {hasApiKey ? 'CHANGE KEY' : 'CONNECT AI STUDIO'}
+                                {hasApiKey ? 'CHANGE KEY' : 'CONNECT GEMIINI 3 API KEY'}
                             </button>
                         </div>
+                        
+                        {showKeyInput && (
+                            <div className="mt-4 flex gap-2 animate-fade-in">
+                                <input 
+                                    type="password"
+                                    placeholder="Enter Gemini API Key"
+                                    value={apiKeyInput}
+                                    onChange={(e) => setApiKeyInput(e.target.value)}
+                                    className="flex-1 bg-background-dark border border-primary-dim rounded p-2 text-white text-sm focus:border-primary outline-none"
+                                />
+                                <button
+                                    onClick={handleSaveKey}
+                                    className="px-4 py-2 bg-success text-background-dark rounded text-xs font-bold hover:bg-success-bright"
+                                >
+                                    SAVE
+                                </button>
+                            </div>
+                        )}
+
                         <p className="text-xs text-text-muted mt-4 p-3 bg-background-dark rounded border border-primary-dim">
-                            <span className="text-primary font-bold">Security Note:</span> Keys are not stored in application state. They are securely injected via the environment runtime (process.env.API_KEY).
+                            <span className="text-primary font-bold">Security Note:</span> Keys are injected via environment runtime (process.env.API_KEY). For local development, keys can be stored in browser LocalStorage.
                         </p>
                     </div>
                 </div>

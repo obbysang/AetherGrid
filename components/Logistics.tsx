@@ -63,7 +63,7 @@ export const Logistics: React.FC = () => {
 
     const getStats = () => {
         const total = orders.length;
-        const critical = orders.filter(o => o.priority === 'CRITICAL').length;
+        const critical = orders.filter(o => o.priority === 'CRITICAL' && o.status !== 'COMPLETED').length;
         const completed = orders.filter(o => o.status === 'COMPLETED').length;
         const active = orders.filter(o => o.status === 'IN_PROGRESS').length;
         return { total, critical, completed, active };
@@ -218,7 +218,7 @@ export const Logistics: React.FC = () => {
                                     </span>
                                 </div>
                                 <div>
-                                    <span className={`font-bold ${wo.priority === 'CRITICAL' ? 'text-alert' : wo.priority === 'HIGH' ? 'text-orange-400' : 'text-text-muted'}`}>
+                                    <span className={`font-bold ${wo.priority === 'CRITICAL' && wo.status !== 'COMPLETED' ? 'text-alert' : wo.priority === 'HIGH' ? 'text-orange-400' : 'text-text-muted'}`}>
                                         {wo.priority}
                                     </span>
                                 </div>

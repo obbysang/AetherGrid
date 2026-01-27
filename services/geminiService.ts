@@ -6,7 +6,10 @@ import { logisticsService } from "./logisticsService";
 import { solarService } from "./solarService";
 
 // Environment Check
-const API_KEY = process.env.API_KEY || '';
+const getApiKey = () => {
+    // Check process.env first, then localStorage (for local dev fallback)
+    return process.env.API_KEY || localStorage.getItem('gemini_api_key') || '';
+};
 
 // --- Tool Definitions for Gemini ---
 const tools = [
@@ -73,13 +76,13 @@ class AI_Simulator {
 // --- Main Service ---
 
 export const generateRootCauseAnalysis = async (anomaly: Anomaly, recentTelemetry: TelemetryPoint[]) => {
-    if (!API_KEY) {
-        console.warn("Gemini API Key missing. Using AetherGrid Simulation Engine.");
-        return AI_Simulator.generateRootCause(anomaly, recentTelemetry);
+    const apiKey = getApiKey();
+    if (!apiKey) {
+        throw new Error("MISSING_API_KEY");
     }
 
     try {
-        const ai = new GoogleGenAI({ apiKey: API_KEY });
+        const ai = new GoogleGenAI({ apiKey });
         const telemetryContext = JSON.stringify(recentTelemetry.slice(-10));
         
         const prompt = `
@@ -110,10 +113,11 @@ export const generateRootCauseAnalysis = async (anomaly: Anomaly, recentTelemetr
 };
 
 export const generateStrategyJustification = async (tier: string, cost: number, lifeExt: number) => {
-    if (!API_KEY) return AI_Simulator.justifyStrategy(tier);
+    const apiKey = getApiKey();
+    if (!apiKey) throw new Error("MISSING_API_KEY");
 
     try {
-        const ai = new GoogleGenAI({ apiKey: API_KEY });
+        const ai = new GoogleGenAI({ apiKey });
         const prompt = `
         Justify the selection of the "${tier}" repair tier (Cost: $${cost}, Life Extension: +${lifeExt} yrs).
         Explain the ROI and risk trade-off.
