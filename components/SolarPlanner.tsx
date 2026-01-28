@@ -3,10 +3,11 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Sun, Map, DollarSign, BatteryCharging, ArrowRight, Layers, MapPin, X, Check, Calculator, Calendar, BarChart3, Search } from 'lucide-react';
 import { executeSolarPlanning } from '../services/geminiService';
 import { SolarPotential } from '../types';
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap, Circle, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap, Circle, Popup, Polygon } from 'react-leaflet';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import osmtogeojson from 'osmtogeojson';
 
 // Fix Leaflet default icon issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -15,6 +16,119 @@ L.Icon.Default.mergeOptions({
     iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
     shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
 });
+
+// Helper to calculate polygon area (approximate meters squared)
+function calculatePolygonArea(latLngs: L.LatLng[]): number {
+    const R = 6378137; // Earth radius in meters
+    let area = 0;
+    if (latLngs.length > 2) {
+        for (let i = 0; i < latLngs.length; i++) {
+            const p1 = latLngs[i];
+            const p2 = latLngs[(i + 1) % latLngs.length];
+            area += (p2.lng - p1.lng) * (Math.PI / 180) * 
+                    (2 + Math.sin(p1.lat * (Math.PI / 180)) + Math.sin(p2.lat * (Math.PI / 180)));
+        }
+        area = Math.abs(area * R * R / 2);
+    }
+    return area;
+}
+
+// Component to handle building fetching and rendering
+const BuildingLayer = ({ 
+    onBuildingSelect 
+}: { 
+    onBuildingSelect: (lat: number, lng: number, area: number) => void 
+}) => {
+    const map = useMap();
+    const [buildings, setBuildings] = useState<any[]>([]);
+    
+    // Use useCallback to prevent infinite loops in dependency arrays
+    const fetchBuildings = React.useCallback(async () => {
+        if (map.getZoom() < 16) {
+            setBuildings([]);
+            return;
+        }
+
+        const bounds = map.getBounds();
+        const s = bounds.getSouth();
+        const n = bounds.getNorth();
+        const w = bounds.getWest();
+        const e = bounds.getEast();
+
+        const query = `
+            [out:json][timeout:25];
+            (
+              way["building"](${s},${w},${n},${e});
+              relation["building"](${s},${w},${n},${e});
+            );
+            out body;
+            >;
+            out skel qt;
+        `;
+
+        try {
+            const response = await fetch('https://overpass-api.de/api/interpreter', {
+                method: 'POST',
+                body: query
+            });
+            const data = await response.json();
+            const geojson = osmtogeojson(data);
+            
+            const polygons = (geojson as any).features.filter((f: any) => f.geometry.type === 'Polygon');
+            setBuildings(polygons);
+        } catch (error) {
+            console.error("Failed to fetch buildings:", error);
+        }
+    }, [map]);
+
+    useMapEvents({
+        moveend: () => {
+            fetchBuildings();
+        }
+    });
+
+    // Initial fetch
+    useEffect(() => {
+        fetchBuildings();
+    }, [fetchBuildings]);
+
+    return (
+        <>
+            {buildings.map((building, idx) => {
+                // Random solar potential color (simulated)
+                // In real app, this would come from the backend processing (GRASS GIS)
+                const potential = Math.random(); 
+                const color = potential > 0.7 ? '#FFD700' : potential > 0.4 ? '#FFA500' : '#1e3a8a';
+                
+                // Convert GeoJSON coords to Leaflet LatLngs
+                // GeoJSON is LngLat, Leaflet is LatLng
+                const coords = building.geometry.coordinates[0].map((c: any) => [c[1], c[0]] as [number, number]);
+
+                return (
+                    <Polygon
+                        key={idx}
+                        positions={coords}
+                        pathOptions={{
+                            color: color,
+                            weight: 1,
+                            fillOpacity: 0.4,
+                            fillColor: color
+                        }}
+                        eventHandlers={{
+                            click: (e) => {
+                                L.DomEvent.stopPropagation(e);
+                                const latLngs = coords.map((c: any) => L.latLng(c[0], c[1]));
+                                const area = calculatePolygonArea(latLngs);
+                                const center = e.latlng;
+                                onBuildingSelect(center.lat, center.lng, area);
+                            }
+                        }}
+                    />
+                );
+            })}
+        </>
+    );
+};
 
 // Component to handle map clicks, drag, and resize
 const MapController = ({ position, setPosition, isInteractive }: { position: { lat: number, lng: number }, setPosition: (pos: { lat: number, lng: number }) => void, isInteractive: boolean }) => {
@@ -68,6 +182,8 @@ export const SolarPlanner: React.FC = () => {
     const [electricityRate, setElectricityRate] = useState(0.15); // $/kWh
     const [panelCost, setPanelCost] = useState(800); // $ per panel
 
+    const [selectedBuildingArea, setSelectedBuildingArea] = useState<number | undefined>(undefined);
+
     // Get user location on mount
     useEffect(() => {
         if (navigator.geolocation) {
@@ -84,10 +200,17 @@ export const SolarPlanner: React.FC = () => {
         }
     }, []);
 
+    const handleBuildingSelect = (lat: number, lng: number, area: number) => {
+        setCoordinates({ lat, lng });
+        setSelectedBuildingArea(area);
+        // Optional: auto-analyze on click
+        // handleAnalysis(lat, lng, area);
+    };
+
     const handleAnalysis = async () => {
         setAnalyzing(true);
         try {
-            const data = await executeSolarPlanning(coordinates.lat, coordinates.lng);
+            const data = await executeSolarPlanning(coordinates.lat, coordinates.lng, selectedBuildingArea);
             setResult(data);
         } catch (e) {
             alert("Failed to analyze solar potential");
@@ -277,17 +400,20 @@ export const SolarPlanner: React.FC = () => {
                             isInteractive={!analyzing}
                         />
                         
+                        <BuildingLayer onBuildingSelect={handleBuildingSelect} />
+
                         {/* Heatmap Overlay Simulation */}
                         {result && (
                             <Circle 
                                 center={[coordinates.lat, coordinates.lng]}
-                                radius={20}
-                                pathOptions={{ fillColor: '#FFD700', fillOpacity: 0.3, color: '#FFD700', weight: 1 }}
+                                radius={Math.sqrt(result.areaSqM || 100) / 2 + 5} // Approximate radius from area
+                                pathOptions={{ fillColor: '#FFD700', fillOpacity: 0.6, color: '#FFD700', weight: 2 }}
                             >
                                 <Popup>
                                     <div className="text-black text-xs font-bold">
                                         Solar Potential Zone<br/>
-                                        Flux: {result.totalSolarFluxKwh.toFixed(0)} kWh/yr
+                                        Flux: {result.totalSolarFluxKwh.toFixed(0)} kWh/yr<br/>
+                                        Area: {result.areaSqM?.toFixed(0)} m²
                                     </div>
                                 </Popup>
                             </Circle>

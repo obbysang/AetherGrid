@@ -179,7 +179,7 @@ export const runMaintenanceWorkflow = async (trigger: string, context: any) => {
     };
 };
 
-export const executeSolarPlanning = async (lat: number, lng: number) => {
+export const executeSolarPlanning = async (lat: number, lng: number, areaSqM?: number) => {
     // Direct tool call wrapper
-    return solarService.analyzeRoof(lat, lng);
+    return solarService.analyzeRoof(lat, lng, 'Monocrystalline', areaSqM);
 };

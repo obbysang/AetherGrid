@@ -13,7 +13,8 @@ class SolarService {
     public async analyzeRoof(
         lat: number, 
         lng: number, 
-        panelType: string = 'Monocrystalline'
+        panelType: string = 'Monocrystalline',
+        providedAreaSqM?: number
     ): Promise<SolarPotential> {
         // Simulate network latency
         await new Promise(resolve => setTimeout(resolve, 1500));
@@ -30,7 +31,14 @@ class SolarService {
 
         // 2. Simulate Roof Geometry (Randomized deterministic based on coords)
         const roofSeed = Math.abs(lat * lng * 1000);
-        const roofArea = 100 + (roofSeed % 400); // 100-500 m2
+        
+        let roofArea: number;
+        if (providedAreaSqM) {
+             roofArea = providedAreaSqM;
+        } else {
+             roofArea = 100 + (roofSeed % 400); // 100-500 m2
+        }
+        
         const usableArea = roofArea * 0.7; // 70% usable
 
         // 3. Shade Analysis
