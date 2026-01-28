@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View } from '../types';
 import { 
     LayoutDashboard, 
@@ -13,7 +13,8 @@ import {
     Truck,
     Sun,
     Menu,
-    X
+    X,
+    AlertTriangle
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -24,6 +25,24 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, children }) => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [hasApiKey, setHasApiKey] = useState(true);
+
+    useEffect(() => {
+        const checkKey = () => {
+             const key = import.meta.env.VITE_GOOGLE_API_KEY || 
+                         (process.env as any).API_KEY || 
+                         localStorage.getItem('gemini_api_key');
+             setHasApiKey(!!key);
+        };
+        checkKey();
+        window.addEventListener('storage', checkKey);
+        window.addEventListener('apikey-updated', checkKey);
+
+        return () => {
+            window.removeEventListener('storage', checkKey);
+            window.removeEventListener('apikey-updated', checkKey);
+        };
+    }, []);
     
     const navItems = [
         { id: View.MISSION_CONTROL, label: 'Mission Control', icon: LayoutDashboard },
@@ -150,8 +169,25 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, childre
                     </div>
                 </header>
 
-                <main className="flex-1 overflow-y-auto p-6 scroll-smooth bg-gradient-to-br from-background-dark to-background-darker">
-                    {children}
+                <main className="flex-1 overflow-y-auto scroll-smooth bg-gradient-to-br from-background-dark to-background-darker">
+                    {!hasApiKey && (
+                        <div className="bg-yellow-500/10 border-b border-yellow-500/30 p-3 text-center text-xs font-bold text-yellow-500 flex justify-center items-center gap-2 backdrop-blur-sm sticky top-0 z-20">
+                            <AlertTriangle className="w-4 h-4" />
+                            <span>Simulation Mode Active. Connect Gemini API Key for live AI features.</span>
+                            <button 
+                                onClick={() => {
+                                    onNavigate(View.CONFIGURATION);
+                                    setIsMobileMenuOpen(false);
+                                }} 
+                                className="underline hover:text-white ml-2 cursor-pointer"
+                            >
+                                Configure API Key
+                            </button>
+                        </div>
+                    )}
+                    <div className="p-6">
+                        {children}
+                    </div>
                 </main>
             </div>
         </div>

@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Sun, Map, DollarSign, BatteryCharging, ArrowRight, Layers, MapPin, X, Check, Calculator, Calendar, BarChart3, Search } from 'lucide-react';
+import { Sun, Map, DollarSign, BatteryCharging, ArrowRight, Layers, MapPin, X, Check, Calculator, Calendar, BarChart3, Search, Locate } from 'lucide-react';
 import { executeSolarPlanning } from '../services/geminiService';
 import { SolarPotential } from '../types';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap, Circle, Popup, Polygon } from 'react-leaflet';
@@ -190,11 +189,10 @@ export const SolarPlanner: React.FC = () => {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
                     const { latitude, longitude } = position.coords;
-                    const userPos = { lat: latitude, lng: longitude };
-                    setCoordinates(userPos);
+                    setCoordinates({ lat: latitude, lng: longitude });
                 },
                 (error) => {
-                    console.log("Geolocation denied or unavailable, using default location.");
+                    console.log("Geolocation blocked or unavailable, using default");
                 }
             );
         }
@@ -239,6 +237,22 @@ export const SolarPlanner: React.FC = () => {
             alert('Search failed. Please try again.');
         } finally {
             setIsSearching(false);
+        }
+    };
+
+    const handleLocateUser = () => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+                    setCoordinates({ lat: latitude, lng: longitude });
+                },
+                (error) => {
+                    alert("Could not access location");
+                }
+            );
+        } else {
+            alert("Geolocation is not supported by this browser.");
         }
     };
 
@@ -365,6 +379,15 @@ export const SolarPlanner: React.FC = () => {
                             <h3 className="text-white font-bold text-sm flex items-center gap-2 mb-2">
                                 <MapPin className="w-4 h-4 text-primary" /> Coordinates
                             </h3>
+                            <div className="flex justify-between items-center mb-2">
+                                <button 
+                                    onClick={handleLocateUser}
+                                    className="bg-primary/20 hover:bg-primary/30 text-primary border border-primary/50 rounded px-2 py-1 text-xs font-bold transition-colors flex items-center gap-1"
+                                    title="Use my current location"
+                                >
+                                    <Locate className="w-3 h-3" /> LOCATE ME
+                                </button>
+                            </div>
                             <div className="flex gap-2">
                                 <input 
                                     type="number" 
@@ -388,7 +411,7 @@ export const SolarPlanner: React.FC = () => {
                         center={[coordinates.lat, coordinates.lng]} 
                         zoom={18} 
                         style={{ height: '100%', width: '100%', cursor: 'crosshair' }}
-                    >
+                     >
                         {/* Satellite Tiles */}
                         <TileLayer
                             attribution='Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'

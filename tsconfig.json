@@ -10,8 +10,12 @@
       "DOM.Iterable"
     ],
     "skipLibCheck": true,
+    "esModuleInterop": true,
     "types": [
-      "node"
+      "node",
+      "vite/client",
+      "vitest/globals",
+      "@testing-library/jest-dom"
     ],
     "moduleResolution": "bundler",
     "isolatedModules": true,

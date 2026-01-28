@@ -1,13 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera, Maximize, AlertTriangle, CheckCircle, Crosshair, History, Cuboid, Video, Filter, Layers, Loader2 } from 'lucide-react';
 import { analyzeVisualAnomaly } from '../services/geminiService';
+import { HistoryPanel, HistoryLogEntry } from './perception/HistoryPanel';
+import { ThreeDViewer } from './perception/ThreeDViewer';
 
-interface LogEntry {
-    id: number;
-    timestamp: string;
-    type: 'CRITICAL' | 'NORMAL';
-    title: string;
-    description: string;
+interface LogEntry extends HistoryLogEntry {
     thumbnail?: string;
 }
 
@@ -16,14 +13,12 @@ export const PerceptionLab: React.FC = () => {
     const [viewMode, setViewMode] = useState<'LIVE' | 'HISTORY' | '3D'>('LIVE');
     const [logFilter, setLogFilter] = useState<'ALL' | 'CRITICAL' | 'NORMAL'>('ALL');
     const [logs, setLogs] = useState<LogEntry[]>([
-        { id: 1, timestamp: '09:41:12', type: 'CRITICAL', title: 'Micro-fracture', description: 'Confidence 94%. Zone 4 blade root.' },
-        { id: 2, timestamp: '09:42:12', type: 'NORMAL', title: 'Surface Scan', description: 'Routine structural integrity check passed.' },
-        { id: 3, timestamp: '09:43:12', type: 'NORMAL', title: 'Surface Scan', description: 'Routine structural integrity check passed.' },
+        { id: 1, timestamp: '09:41:12', type: 'CRITICAL', title: 'Micro-fracture', description: 'Confidence 94%. Zone 4 blade root.', metadata: { zone: 4, confidence: 0.94 } },
+        { id: 2, timestamp: '09:42:12', type: 'NORMAL', title: 'Surface Scan', description: 'Routine structural integrity check passed.', metadata: { scan_id: 'S-2938' } },
+        { id: 3, timestamp: '09:43:12', type: 'NORMAL', title: 'Surface Scan', description: 'Routine structural integrity check passed.', metadata: { scan_id: 'S-2939' } },
     ]);
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const threeDCanvasRef = useRef<HTMLCanvasElement>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
-    const [sliderValue, setSliderValue] = useState(50);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
 
     const handleCapture = async () => {
@@ -41,10 +36,11 @@ export const PerceptionLab: React.FC = () => {
             const newLog: LogEntry = {
                 id: Date.now(),
                 timestamp: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-                type: analysis.type,
+                type: analysis.type as any,
                 title: analysis.title,
                 description: analysis.description,
-                thumbnail: snapshot
+                thumbnail: snapshot,
+                metadata: { source: 'LIVE_CAPTURE', confidence: analysis.confidence || 'N/A' }
             };
 
             setLogs(prev => [newLog, ...prev]);
@@ -133,107 +129,6 @@ export const PerceptionLab: React.FC = () => {
             }
             ctx.stroke();
 
-            animationFrameId = requestAnimationFrame(render);
-        };
-
-        render();
-
-        return () => {
-            cancelAnimationFrame(animationFrameId);
-        };
-    }, [viewMode]);
-
-    // 3D Visualization Animation
-    useEffect(() => {
-        if (viewMode !== '3D') return;
-
-        const canvas = threeDCanvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        let animationFrameId: number;
-        let angle = 0;
-
-        const render = () => {
-            if (!canvas || !ctx) return;
-            
-            // Resize handling
-            const parent = canvas.parentElement;
-            if (parent) {
-                if (canvas.width !== parent.clientWidth || canvas.height !== parent.clientHeight) {
-                    canvas.width = parent.clientWidth;
-                    canvas.height = parent.clientHeight;
-                }
-            }
-
-            const w = canvas.width;
-            const h = canvas.height;
-            const cx = w / 2;
-            const cy = h / 2;
-
-            ctx.fillStyle = '#050505';
-            ctx.fillRect(0, 0, w, h);
-
-            // Draw 3D Wireframe "Turbine" (Simplified as rotating lines)
-            ctx.strokeStyle = '#06f9f9';
-            ctx.lineWidth = 2;
-            ctx.save();
-            ctx.translate(cx, cy);
-            
-            // Draw Tower
-            ctx.beginPath();
-            ctx.moveTo(0, 100);
-            ctx.lineTo(0, 300);
-            ctx.stroke();
-
-            // Draw Hub
-            ctx.beginPath();
-            ctx.arc(0, 100, 10, 0, Math.PI * 2);
-            ctx.stroke();
-
-            // Draw Blades (Rotating)
-            ctx.save();
-            ctx.translate(0, 100);
-            ctx.rotate(angle);
-            
-            for (let i = 0; i < 3; i++) {
-                ctx.rotate((Math.PI * 2) / 3);
-                ctx.beginPath();
-                ctx.moveTo(0, 0);
-                ctx.lineTo(0, -120);
-                ctx.stroke();
-                
-                // Blade details
-                ctx.beginPath();
-                ctx.moveTo(0, -20);
-                ctx.quadraticCurveTo(20, -60, 0, -120);
-                ctx.quadraticCurveTo(-20, -60, 0, -20);
-                ctx.fillStyle = 'rgba(6, 249, 249, 0.1)';
-                ctx.fill();
-                ctx.stroke();
-            }
-            ctx.restore();
-
-            // Draw defect marker in 3D space
-            const defectX = Math.cos(angle) * 80;
-            const defectY = Math.sin(angle) * 80 + 100;
-            
-            ctx.fillStyle = 'rgba(255, 50, 50, 0.8)';
-            ctx.beginPath();
-            ctx.arc(defectX, defectY - 100, 5, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Defect label
-            if (Math.sin(angle) > 0) { // Only show when "front"
-                ctx.fillStyle = '#ff3333';
-                ctx.font = '12px "JetBrains Mono"';
-                ctx.fillText("CRACK DETECTED", defectX + 10, defectY - 100);
-            }
-
-            ctx.restore();
-
-            angle += 0.02;
             animationFrameId = requestAnimationFrame(render);
         };
 
@@ -356,83 +251,26 @@ export const PerceptionLab: React.FC = () => {
                         </>
                     )}
 
-                    {/* HISTORY COMPARISON VIEW */}
+                    {/* HISTORY VIEW */}
                     {viewMode === 'HISTORY' && (
-                        <div className="w-full h-full relative">
-                            {/* Image 1 (Previous) */}
-                            <div className="absolute inset-0">
-                                <img 
-                                    src="https://images.unsplash.com/photo-1535083145464-ba729d3d34fa?q=80&w=2600&auto=format&fit=crop" 
-                                    className="w-full h-full object-cover filter grayscale contrast-125"
-                                    alt="Historical"
-                                />
-                                <div className="absolute top-4 left-4 bg-black/70 text-white text-xs px-2 py-1 rounded border border-white/20">
-                                    PREVIOUS SCAN (2025-12-15)
-                                </div>
-                            </div>
-
-                            {/* Image 2 (Current) - Clipped */}
-                            <div 
-                                className="absolute inset-0 overflow-hidden border-r-2 border-primary"
-                                style={{ width: `${sliderValue}%` }}
-                            >
-                                <img 
-                                    src="https://images.unsplash.com/photo-1535083145464-ba729d3d34fa?q=80&w=2600&auto=format&fit=crop" 
-                                    className="w-full h-full object-cover max-w-none" 
-                                    style={{ width: '100vw' }} // Hack to keep image scaling consistent
-                                    alt="Current"
-                                />
-                                <div className="absolute top-4 right-4 bg-primary/80 text-black text-xs px-2 py-1 rounded font-bold">
-                                    CURRENT FEED
-                                </div>
-                            </div>
-
-                            {/* Slider Control */}
-                            <input 
-                                type="range" 
-                                min="0" 
-                                max="100" 
-                                value={sliderValue} 
-                                onChange={(e) => setSliderValue(Number(e.target.value))}
-                                className="absolute inset-x-0 bottom-10 mx-auto w-3/4 z-20 cursor-ew-resize accent-primary"
-                            />
-                            
-                            <div className="absolute bottom-4 inset-x-0 text-center text-xs text-text-muted font-mono">
-                                DRAG TO COMPARE
-                            </div>
-                        </div>
+                        <HistoryPanel 
+                            logs={logs} 
+                            onClear={() => setLogs([])} 
+                            className="w-full h-full"
+                        />
                     )}
 
                     {/* 3D VISUALIZATION VIEW */}
                     {viewMode === '3D' && (
-                        <div className="w-full h-full relative bg-[#050505]">
-                            <canvas ref={threeDCanvasRef} className="w-full h-full block" />
-                            <div className="absolute top-4 right-4 text-right">
-                                <div className="text-primary font-mono text-xl font-bold">DIGITAL TWIN</div>
-                                <div className="text-xs text-text-muted">REAL-TIME TELEMETRY MAPPING</div>
-                            </div>
-                            <div className="absolute bottom-8 left-8 space-y-2 font-mono text-xs">
-                                <div className="flex gap-4">
-                                    <span className="text-text-muted">ROTATION:</span>
-                                    <span className="text-white">12.4 RPM</span>
-                                </div>
-                                <div className="flex gap-4">
-                                    <span className="text-text-muted">PITCH:</span>
-                                    <span className="text-white">4.2°</span>
-                                </div>
-                                <div className="flex gap-4">
-                                    <span className="text-text-muted">YAW:</span>
-                                    <span className="text-white">-15.8°</span>
-                                </div>
-                            </div>
-                        </div>
+                        <ThreeDViewer className="w-full h-full" />
                     )}
 
                 </div>
             </div>
 
             {/* Side Panel: Analysis */}
-            <div className="w-full lg:w-80 flex flex-col gap-4 h-[400px] lg:h-auto flex-shrink-0">
+            {viewMode !== 'HISTORY' && (
+                <div className="w-full lg:w-80 flex flex-col gap-4 h-[400px] lg:h-auto flex-shrink-0">
                  <div className="bg-background-panel border border-primary-dim rounded-xl p-4 flex-1 flex flex-col min-h-0">
                     <div className="flex justify-between items-center mb-4 border-b border-primary-dim pb-2">
                         <h3 className="text-sm font-bold text-white uppercase tracking-wider">
@@ -525,6 +363,7 @@ export const PerceptionLab: React.FC = () => {
                     </div>
                  </div>
             </div>
+            )}
         </div>
     );
 };

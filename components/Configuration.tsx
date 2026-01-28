@@ -70,7 +70,7 @@ export const Configuration: React.FC = () => {
         if ((window as any).aistudio && (window as any).aistudio.hasSelectedApiKey) {
             const has = await (window as any).aistudio.hasSelectedApiKey();
             setHasApiKey(has);
-        } else if (process.env.API_KEY || localStorage.getItem('gemini_api_key')) {
+        } else if (process.env.API_KEY || import.meta.env.VITE_GOOGLE_API_KEY || localStorage.getItem('gemini_api_key')) {
             setHasApiKey(true);
         }
     };
@@ -80,6 +80,7 @@ export const Configuration: React.FC = () => {
             await (window as any).aistudio.openSelectKey();
             // Assume success after dialog interaction to avoid race conditions
             setHasApiKey(true);
+            window.dispatchEvent(new Event('apikey-updated'));
         } else {
             // Fallback for local development
             setShowKeyInput(!showKeyInput);
@@ -95,6 +96,7 @@ export const Configuration: React.FC = () => {
             setApiKeyInput('');
             setMessage("API Key saved locally.");
             setStatus('success');
+            window.dispatchEvent(new Event('apikey-updated'));
             setTimeout(() => {
                 setStatus('idle');
                 setMessage('');

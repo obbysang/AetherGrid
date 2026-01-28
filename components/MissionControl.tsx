@@ -1,7 +1,8 @@
 
 import React, { useEffect, useState } from 'react';
-import { Zap, Activity, AlertTriangle, Wind } from 'lucide-react';
+import { Zap, Activity, AlertTriangle, Wind, BrainCircuit, Terminal } from 'lucide-react';
 import { scadaService } from '../services/scadaService';
+import { runMissionControlAgent } from '../services/geminiService';
 import { Anomaly } from '../types';
 
 const StatCard = ({ title, value, unit, trend, trendUp, icon: Icon, color }: any) => (
@@ -27,6 +28,10 @@ const StatCard = ({ title, value, unit, trend, trendUp, icon: Icon, color }: any
 export const MissionControl: React.FC = () => {
     const [telemetry, setTelemetry] = useState(scadaService.getLatest());
     const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
+    const [agentState, setAgentState] = useState<{
+        status: 'IDLE' | 'THINKING' | 'EXECUTING' | 'COMPLETED';
+        steps: any[];
+    }>({ status: 'IDLE', steps: [] });
 
     useEffect(() => {
         // Subscribe to real-time SCADA updates
@@ -36,15 +41,40 @@ export const MissionControl: React.FC = () => {
             // Periodically check for anomalies (simulated AI trigger)
             scadaService.analyzeTelemetry(60).then(result => {
                 if (result.anomalyDetected) {
-                    setAnomalies(prev => {
-                        const newAnomalies = result.anomalies.filter(a => !prev.find(p => p.id === a.id));
-                        return [...newAnomalies, ...prev].slice(0, 10);
-                    });
+                    const newAnomalies = result.anomalies.filter(a => !anomalies.find(p => p.id === a.id));
+                    
+                    if (newAnomalies.length > 0) {
+                        setAnomalies(prev => [...newAnomalies, ...prev].slice(0, 10));
+                        
+                        // TRIGGER AGENT AUTOMATICALLY
+                        if (agentState.status === 'IDLE') {
+                            triggerAgent(newAnomalies[0]);
+                        }
+                    }
                 }
             });
         });
         return unsubscribe;
-    }, []);
+    }, [anomalies, agentState.status]);
+
+    const triggerAgent = async (anomaly: Anomaly) => {
+        setAgentState({ status: 'THINKING', steps: [] });
+        
+        try {
+            const result = await runMissionControlAgent(
+                `Anomaly Detected: ${anomaly.type} on ${anomaly.assetId}`, 
+                { anomaly, telemetry: scadaService.getLatest() }
+            );
+            
+            setAgentState({
+                status: 'COMPLETED',
+                steps: result.steps
+            });
+        } catch (e) {
+            console.error("Agent Failed", e);
+            setAgentState(prev => ({ ...prev, status: 'IDLE' }));
+        }
+    };
 
     if (!telemetry) return <div className="p-10 text-white">Initializing SCADA Uplink...</div>;
 
@@ -139,6 +169,38 @@ export const MissionControl: React.FC = () => {
                             <div className="w-3 h-3 bg-primary rounded-full border border-white shadow-[0_0_10px_#06f9f9]"></div>
                         </div>
                      </div>
+
+                     {/* Agent "Thought Bubble" Overlay */}
+                     {agentState.status !== 'IDLE' && (
+                        <div className="absolute bottom-4 right-4 max-w-md w-full bg-black/80 backdrop-blur-md border border-primary rounded-lg p-4 shadow-2xl animate-in slide-in-from-bottom-10 fade-in duration-500">
+                            <div className="flex items-center gap-2 mb-3 border-b border-primary/30 pb-2">
+                                <BrainCircuit className={`w-5 h-5 text-primary ${agentState.status === 'THINKING' ? 'animate-pulse' : ''}`} />
+                                <span className="font-bold text-sm text-white">
+                                    {agentState.status === 'THINKING' ? 'ORCHESTRATOR ACTIVE...' : 'MISSION COMPLETE'}
+                                </span>
+                            </div>
+                            <div className="space-y-3 max-h-[200px] overflow-y-auto custom-scrollbar font-mono text-xs">
+                                {agentState.steps.map((step, idx) => (
+                                    <div key={idx} className="space-y-1">
+                                        <div className="text-primary/80 font-bold">Step {step.step}: {step.action === 'Final Answer' ? 'Conclusion' : step.action}</div>
+                                        <div className="text-white/70 pl-2 border-l-2 border-primary/20 italic">"{step.thought.substring(0, 100)}..."</div>
+                                        {step.result && (
+                                            <div className="text-success/80 pl-2">
+                                                <Terminal className="w-3 h-3 inline mr-1" />
+                                                Result: {JSON.stringify(step.result).substring(0, 50)}...
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                                {agentState.status === 'THINKING' && (
+                                    <div className="flex items-center gap-2 text-text-muted italic">
+                                        <span className="w-2 h-2 bg-primary rounded-full animate-bounce"></span>
+                                        Reasoning...
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                     )}
                 </div>
 
                 {/* Live Logs */}

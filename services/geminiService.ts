@@ -1,51 +1,67 @@
 
-import { GoogleGenAI } from "@google/genai";
-import { Anomaly, TelemetryPoint, WorkOrder, SolarPotential } from "../types";
+import { GoogleGenAI, Type as SchemaType, FunctionDeclaration, Content, Part } from "@google/genai";
+import { Anomaly, TelemetryPoint, WorkOrder, SolarPotential, RepairPart } from "../types";
 import { scadaService } from "./scadaService";
 import { logisticsService } from "./logisticsService";
 import { solarService } from "./solarService";
 
 // Environment Check
 const getApiKey = () => {
-    // Check process.env first, then localStorage (for local dev fallback)
-    return process.env.API_KEY || localStorage.getItem('gemini_api_key') || '';
+    // Check Vite env vars first, then localStorage (for local dev fallback)
+    return import.meta.env.VITE_GOOGLE_API_KEY || localStorage.getItem('gemini_api_key') || '';
 };
 
-// --- Tool Definitions for Gemini ---
-const tools = [
+// --- Tool Definitions for Gemini (aligned with PDF Spec) ---
+const tools: FunctionDeclaration[] = [
     {
         name: "analyze_scada_telemetry",
-        description: "Analyze SCADA sensor data for anomalies.",
+        description: "Analyze SCADA sensor data for anomalies over a specified time window. Returns anomaly details including type, severity, and raw sensor data context.",
         parameters: {
-            type: "OBJECT",
+            type: SchemaType.OBJECT,
             properties: {
-                window_seconds: { type: "INTEGER", description: "Time window in seconds to analyze" }
+                window_seconds: { type: SchemaType.INTEGER, description: "Time window in seconds to analyze (default 60)" }
             }
         }
     },
     {
         name: "dispatch_repair_crew",
-        description: "Create a work order to dispatch a repair crew.",
+        description: "Create a work order to dispatch a repair crew. Checks inventory and schedules based on priority.",
         parameters: {
-            type: "OBJECT",
+            type: SchemaType.OBJECT,
             properties: {
-                fault_type: { type: "STRING" },
-                priority_level: { type: "INTEGER" },
-                asset_id: { type: "STRING" },
-                crew_size: { type: "INTEGER" },
-                estimated_hours: { type: "NUMBER" }
-            }
+                fault_type: { type: SchemaType.STRING, description: "Type of defect (e.g., LeadingEdgeErosion)" },
+                priority_level: { type: SchemaType.INTEGER, description: "1 (Critical) to 5 (Routine)" },
+                asset_id: { type: SchemaType.STRING, description: "Asset ID (e.g., WTG-042)" },
+                crew_size: { type: SchemaType.INTEGER, description: "Required crew size" },
+                estimated_hours: { type: SchemaType.NUMBER, description: "Estimated labor hours" },
+                estimated_parts_list: {
+                    type: SchemaType.ARRAY,
+                    description: "List of parts required",
+                    items: {
+                        type: SchemaType.OBJECT,
+                        properties: {
+                            partId: { type: SchemaType.STRING },
+                            quantity: { type: SchemaType.INTEGER },
+                            unitCost: { type: SchemaType.NUMBER },
+                            name: { type: SchemaType.STRING }
+                        }
+                    }
+                }
+            },
+            required: ["fault_type", "priority_level", "asset_id"]
         }
     },
     {
         name: "query_solar_potential",
-        description: "Analyze solar potential for a location.",
+        description: "Analyze solar potential for a specific location using rooftop geometry and solar flux data.",
         parameters: {
-            type: "OBJECT",
+            type: SchemaType.OBJECT,
             properties: {
-                lat: { type: "NUMBER" },
-                lng: { type: "NUMBER" }
-            }
+                lat: { type: SchemaType.NUMBER },
+                lng: { type: SchemaType.NUMBER },
+                panel_type: { type: SchemaType.STRING, description: "Monocrystalline or Polycrystalline" }
+            },
+            required: ["lat", "lng"]
         }
     }
 ];
@@ -80,22 +96,72 @@ class AI_Simulator {
             { title: "Micro-Crack", description: "Hairline fracture detected near root. Monitor closely.", type: 'CRITICAL' },
             { title: "Lightning Strike", description: "Charring pattern consistent with lightning impact.", type: 'CRITICAL' }
         ];
-        return outcomes[Math.floor(Math.random() * outcomes.length)] as any;
+        const result = outcomes[Math.floor(Math.random() * outcomes.length)];
+        return result as {title: string, description: string, type: 'CRITICAL' | 'NORMAL'};
     }
 }
 
 // --- Main Service ---
 
 export const analyzeVisualAnomaly = async (imageBase64: string) => {
-    // In a real scenario, we would send the image to Gemini 1.5 Pro/Flash for analysis
-    // For this demo, we'll use the simulator to ensure responsiveness without requiring an active API key for vision tasks
-    return AI_Simulator.analyzeVisualSnapshot(imageBase64);
+    const apiKey = getApiKey();
+    if (!apiKey) return AI_Simulator.analyzeVisualSnapshot(imageBase64);
+
+    try {
+        const ai = new GoogleGenAI({ apiKey });
+        const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+
+        // Upgrade to Gemini 3 Pro Preview for Multimodal Reasoning
+        // const model = 'gemini-2.0-flash'; // Fallback to flash for speed if needed, but aim for 3
+        const model = 'gemini-3-pro-preview'; 
+        
+        const prompt = `
+        Analyze this image from a drone inspection of a wind turbine or industrial asset.
+        Identify any anomalies such as cracks, erosion, surface contamination, or structural issues.
+        
+        Return a JSON object with the following structure:
+        {
+            "title": "Short Title of Issue",
+            "description": "Concise description of the finding (max 2 sentences)",
+            "type": "CRITICAL" | "NORMAL"
+        }
+        
+        If no significant anomalies are found, return type "NORMAL" with a routine check description.
+        Ensure the output is valid JSON. Do not include markdown code blocks.
+        `;
+
+        const response = await ai.models.generateContent({
+            model: model,
+            contents: [
+                {
+                    parts: [
+                        { text: prompt },
+                        {
+                            inlineData: {
+                                mimeType: "image/jpeg",
+                                data: cleanBase64
+                            }
+                        }
+                    ]
+                }
+            ]
+        });
+
+        const responseText = response.text || "{}";
+        // clean up markdown if present
+        const cleanedText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        
+        return JSON.parse(cleanedText);
+    } catch (error) {
+        console.error("Gemini Vision Error:", error);
+        return AI_Simulator.analyzeVisualSnapshot(imageBase64);
+    }
 };
 
 export const generateRootCauseAnalysis = async (anomaly: Anomaly, recentTelemetry: TelemetryPoint[]) => {
     const apiKey = getApiKey();
     if (!apiKey) {
-        throw new Error("MISSING_API_KEY");
+        return AI_Simulator.generateRootCause(anomaly, recentTelemetry);
     }
 
     try {
@@ -114,15 +180,17 @@ export const generateRootCauseAnalysis = async (anomaly: Anomaly, recentTelemetr
 
         const response = await ai.models.generateContent({
             model: 'gemini-3-pro-preview', 
-            contents: prompt,
+            contents: [
+                { parts: [{ text: prompt }] }
+            ],
             config: {
                 systemInstruction: `Role: AetherGrid Mission Control. Goal: Analyze anomalies.`,
                 temperature: 0.2,
-                thinkingConfig: { thinkingBudget: 1024 }, 
+                // thinkingConfig: { thinkingBudget: 1024 }, // Enable if supported by account/model
             }
         });
 
-        return response.text;
+        return response.text || "Analysis failed.";
     } catch (error) {
         console.error("Gemini API Error:", error);
         return AI_Simulator.generateRootCause(anomaly, recentTelemetry);
@@ -131,7 +199,7 @@ export const generateRootCauseAnalysis = async (anomaly: Anomaly, recentTelemetr
 
 export const generateStrategyJustification = async (tier: string, cost: number, lifeExt: number) => {
     const apiKey = getApiKey();
-    if (!apiKey) throw new Error("MISSING_API_KEY");
+    if (!apiKey) return AI_Simulator.justifyStrategy(tier);
 
     try {
         const ai = new GoogleGenAI({ apiKey });
@@ -142,42 +210,206 @@ export const generateStrategyJustification = async (tier: string, cost: number, 
 
         const response = await ai.models.generateContent({
             model: 'gemini-3-pro-preview',
-            contents: prompt,
+            contents: [
+                 { parts: [{ text: prompt }] }
+            ],
             config: { temperature: 0.5 }
         });
 
-        return response.text;
+        return response.text || "Justification unavailable.";
     } catch (error) {
         return AI_Simulator.justifyStrategy(tier);
     }
 };
 
-// Tool-enabled Agent Workflow (Antigravity Platform Simulation)
-export const runMaintenanceWorkflow = async (trigger: string, context: any) => {
-    console.log("Starting Maintenance Workflow:", trigger);
-    
-    // In a full implementation with API Key, this would be a multi-turn loop
-    // calling tools. Here we implement the "Happy Path" logic directly 
-    // to ensure functionality even without the LLM, while keeping the structure ready.
-    
-    // Step 1: Analyze SCADA (Analytics Agent)
-    const scadaResult = await scadaService.analyzeTelemetry(60);
-    
-    if (scadaResult.anomalyDetected) {
-        console.log("Workflow: Anomaly Confirmed", scadaResult.anomalies[0]);
-        
-        // Step 2: Plan Repair (Planning Agent)
-        // (Logic handled in UI via Strategy Selection)
-        
-        // Step 3: Logistics (Logistics Agent)
-        // This is usually triggered by user approval in the UI
+// --- Mission Control Agent Loop (ReAct Implementation) ---
+
+interface AgentStep {
+    step: number;
+    thought: string;
+    action?: string;
+    result?: any;
+}
+
+export const runMissionControlAgent = async (trigger: string, context: any): Promise<{status: string, steps: AgentStep[], finalResult: any}> => {
+    const apiKey = getApiKey();
+    if (!apiKey) {
+        // Fallback to "Happy Path" simulation if no key
+        return runSimulationWorkflow(trigger);
     }
+
+    console.log("Starting Mission Control Agent:", trigger);
+    const steps: AgentStep[] = [];
+    const ai = new GoogleGenAI({ apiKey });
     
+    // Initial System Prompt
+    const systemInstruction = `
+    Role: AetherGrid Mission Control Orchestrator.
+    Goal: Autonomous maintenance of renewable energy assets.
+    
+    You have access to the following tools:
+    1. analyze_scada_telemetry(window_seconds: int) - Check sensor data.
+    2. dispatch_repair_crew(fault_type, priority_level, asset_id, crew_size, estimated_hours, estimated_parts_list) - Create work orders.
+    3. query_solar_potential(lat, lng, panel_type) - Analyze solar capacity.
+
+    Protocol:
+    - When an anomaly is reported, ALWAYS verify it with 'analyze_scada_telemetry' first.
+    - If verified, determine severity and dispatch a crew using 'dispatch_repair_crew'.
+    - Use 'query_solar_potential' only for solar planning tasks.
+    - Output a "Thought" before every action to explain your reasoning.
+    - Maintain a "Thought Signature" style of continuity.
+    `;
+
+    // Initialize history with proper typing if possible, but for now we rely on inferred 'any' structure 
+    // or we construct it strictly according to SDK types.
+    let history: Content[] = [
+        { role: 'user', parts: [{ text: `Trigger Event: ${trigger}. Context: ${JSON.stringify(context)}` }] }
+    ];
+
+    let finalResult = null;
+    const maxTurns = 5;
+
+    for (let i = 0; i < maxTurns; i++) {
+        try {
+            const response = await ai.models.generateContent({
+                model: 'gemini-3-pro-preview',
+                contents: history,
+                config: {
+                    systemInstruction: systemInstruction,
+                    temperature: 0.1, // Low temp for reliable tool calling
+                    tools: [{ functionDeclarations: tools }],
+                }
+            });
+
+            // In @google/genai, the response object itself usually contains candidates.
+            // Adjusting based on standard usage patterns for this SDK version.
+            const candidates = response.candidates; 
+            const parts = candidates?.[0]?.content?.parts || [];
+            
+            // Add model response to history
+            history.push({ role: 'model', parts: parts });
+
+            let textResponse = "";
+            let functionCall = null;
+
+            for (const part of parts) {
+                if (part.text) {
+                    textResponse += part.text;
+                }
+                if (part.functionCall) {
+                    functionCall = part.functionCall;
+                }
+            }
+
+            steps.push({
+                step: i + 1,
+                thought: textResponse,
+                action: functionCall ? functionCall.name : "Final Answer"
+            });
+
+            if (functionCall) {
+                console.log(`Agent executing tool: ${functionCall.name}`, functionCall.args);
+                
+                // Execute Tool
+                let toolResult;
+                const args = functionCall.args as any;
+
+                if (functionCall.name === 'analyze_scada_telemetry') {
+                    toolResult = await scadaService.analyzeTelemetry(args.window_seconds || 60);
+                } else if (functionCall.name === 'dispatch_repair_crew') {
+                    toolResult = await logisticsService.dispatchRepairCrew(
+                        args.fault_type,
+                        args.priority_level,
+                        args.asset_id,
+                        args.estimated_parts_list || [],
+                        args.crew_size || 2,
+                        args.estimated_hours || 4
+                    );
+                    toolResult = { work_order_id: toolResult, status: "DISPATCHED" };
+                } else if (functionCall.name === 'query_solar_potential') {
+                    toolResult = await solarService.analyzeRoof(args.lat, args.lng, args.panel_type);
+                    // Compress result for context window
+                    if (toolResult.hourlyFluxMap) toolResult.hourlyFluxMap = []; 
+                } else {
+                    toolResult = { error: "Unknown tool" };
+                }
+
+                // Add tool result to history
+                // Note: role needs to be 'function' or 'tool' depending on the exact SDK version nuances.
+                // Assuming 'function' for now as it's common for 'functionCall' handling.
+                history.push({
+                    role: 'function',
+                    parts: [{
+                        functionResponse: {
+                            name: functionCall.name,
+                            response: { result: toolResult }
+                        }
+                    }]
+                });
+                
+                // Update step with result
+                steps[steps.length - 1].result = toolResult;
+
+            } else {
+                // No function call means we are done
+                finalResult = textResponse;
+                break;
+            }
+
+        } catch (e) {
+            console.error("Agent Loop Error:", e);
+            steps.push({ step: i + 1, thought: "Error in agent loop", result: e });
+            break;
+        }
+    }
+
     return {
-        status: "ANALYZED",
-        findings: scadaResult
+        status: "COMPLETED",
+        steps,
+        finalResult
     };
 };
+
+// Simulation fallback for when no API key is present
+const runSimulationWorkflow = async (trigger: string) => {
+    console.log("Running Simulation Workflow (No API Key)");
+    await new Promise(r => setTimeout(r, 1000));
+    
+    // Step 1: Analyze
+    const scadaResult = await scadaService.analyzeTelemetry(60);
+    
+    // Step 2: Simulated Logic
+    // Explicitly typing the steps array to allow flexible result types
+    let steps: AgentStep[] = [
+        { step: 1, thought: "Analyzing SCADA telemetry for correlations...", action: "analyze_scada_telemetry", result: scadaResult }
+    ];
+
+    if (scadaResult.anomalyDetected) {
+         // Step 3: Dispatch
+         const woId = await logisticsService.dispatchRepairCrew(
+             "VibrationSpike",
+             1,
+             "WTG-042",
+             [{ partId: "P-BEARING", quantity: 1, unitCost: 500 }],
+             3,
+             6
+         );
+         steps.push({ 
+             step: 2, 
+             thought: "Anomaly confirmed. Vibration levels critical. Dispatching repair crew.", 
+             action: "dispatch_repair_crew", 
+             result: { work_order_id: woId, status: "DISPATCHED" } 
+        });
+    } else {
+        steps.push({ step: 2, thought: "No SCADA anomalies correlated. Marking as false positive.", action: "None" });
+    }
+
+    return {
+        status: "SIMULATED",
+        steps,
+        finalResult: "Workflow complete."
+    };
+}
 
 export const executeSolarPlanning = async (lat: number, lng: number, areaSqM?: number) => {
     // Direct tool call wrapper
