@@ -6,9 +6,11 @@
 
 **AetherGrid** is an autonomous agentic system engineered to revolutionize renewable energy operations and maintenance (O&M) through advanced multimodal AI. Built on the **Gemini 3 Pro** model family, it addresses the critical challenge of reactive maintenance by enabling predictive, data-driven decision-making that reduces operational costs and maximizes energy yield.
 
+### 🌐 [Live Demo: aethergrid.netlify.app](https://aethergrid.netlify.app/)
+
 ---
 
-## 🏆 Gemini 3 Hackathon Entry
+## 🏆 Gemini 3 Autonomous Renewable Infrastructure Sentinel
 
 ### Gemini Integration (`gemini-3-pro-preview`)
 
