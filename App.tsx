@@ -14,13 +14,15 @@ import { authService } from './services/authService';
 
 const App: React.FC = () => {
     const [currentView, setCurrentView] = useState<View>(View.MISSION_CONTROL);
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isAuthenticated, setIsAuthenticated] = useState(true); // Default to true to disable login
+    const [isLoading, setIsLoading] = useState(false); // No longer need loading state for auth check
 
+    /* Authentication logic disabled
     useEffect(() => {
         setIsAuthenticated(authService.isAuthenticated());
         setIsLoading(false);
     }, []);
+    */
 
     const renderView = () => {
         switch (currentView) {
@@ -45,9 +47,11 @@ const App: React.FC = () => {
 
     if (isLoading) return null;
 
+    /* Authentication barrier disabled
     if (!isAuthenticated) {
         return <Login onLogin={() => setIsAuthenticated(true)} />;
     }
+    */
 
     return (
         <Layout currentView={currentView} onNavigate={setCurrentView}>

@@ -8,6 +8,11 @@ interface LoginProps {
 }
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
+    /* 
+    DISABLED AUTHENTICATION LOGIC AND VIEW
+    --------------------------------------
+    The following code is preserved for reference.
+    
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -28,7 +33,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
     return (
         <div className="h-screen w-full bg-background-dark flex items-center justify-center relative overflow-hidden">
-            {/* Background Effects */}
             <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1466611653911-95081537e5b7?q=80&w=2600&auto=format&fit=crop')] bg-cover opacity-20"></div>
             <div className="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/80 to-transparent"></div>
             <div className="absolute inset-0 bg-[linear-gradient(rgba(6,249,249,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(6,249,249,0.03)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
@@ -81,6 +85,22 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                         (Hint: gemini2026)
                     </p>
                 </div>
+            </div>
+        </div>
+    );
+    */
+
+    return (
+        <div className="h-screen w-full bg-background-dark flex items-center justify-center">
+            <div className="text-white text-center">
+                <h1 className="text-2xl font-bold">Authentication Disabled</h1>
+                <p className="text-text-muted mt-2">You should not be seeing this page.</p>
+                <button 
+                    onClick={onLogin}
+                    className="mt-4 px-6 py-2 bg-primary text-background-dark font-bold rounded"
+                >
+                    Proceed to App
+                </button>
             </div>
         </div>
     );

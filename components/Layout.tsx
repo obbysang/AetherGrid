@@ -118,6 +118,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, childre
                     </button>
                 </nav>
 
+                {/* User profile section disabled
                 <div className="p-4 border-t border-primary-dim bg-background-panel">
                     <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-primary-dim flex items-center justify-center border border-primary">
@@ -129,6 +130,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, childre
                         </div>
                     </div>
                 </div>
+                */}
             </aside>
 
             {/* Main Content */}
