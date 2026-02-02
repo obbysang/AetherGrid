@@ -1,7 +1,7 @@
 # AetherGrid: Autonomous Renewable Infrastructure Sentinel
 
 <div align="center">
-<img width="1200" height="475" alt="AetherGrid Banner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+<img width="1200" height="475" alt="AetherGrid Banner" src="https://github.com/obbysang/AetherGrid/blob/main/Screenshot%202026-02-03%20012028.png" />
 </div>
 
 **AetherGrid** is an autonomous agentic system engineered to revolutionize renewable energy operations and maintenance (O&M) through advanced multimodal AI. Built on the **Gemini 3 Pro** model family, it addresses the critical challenge of reactive maintenance by enabling predictive, data-driven decision-making that reduces operational costs and maximizes energy yield.
